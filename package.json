@@ -1,0 +1,16 @@
+{
+  "name": "okapibm25",
+  "version": "1.0.0",
+  "description": "A simple, easy to use implementation of the Okapi BM25 algorithm.",
+  "main": "BM25.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "furkantoprak",
+  "keywords": ["okapi", "bm25", "ranking", "relevance", "information retrieval"],
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "license": "ISC"
+}
