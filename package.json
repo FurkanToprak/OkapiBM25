@@ -10,7 +10,7 @@
   "keywords": ["okapi", "bm25", "ranking", "relevance", "information retrieval"],
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "https://github.com/FurkanToprak/OkapiBM25.git"
   },
   "license": "ISC"
 }
