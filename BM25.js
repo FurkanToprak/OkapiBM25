@@ -7,7 +7,7 @@ var getWordCount = function (corpus) {
 };
 /** Number of occurences of a word in a string. */
 var getTermFrequency = function (term, corpus) {
-    return ((corpus || "").match(term) || []).length;
+    return ((corpus || "").match(new RegExp(term, "g")) || []).length;
 };
 /** Inverse document frequency. */
 var getIDF = function (term, documents) {

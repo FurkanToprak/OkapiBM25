@@ -5,7 +5,7 @@ const getWordCount = (corpus: string) => {
 
 /** Number of occurences of a word in a string. */
 const getTermFrequency = (term: string, corpus: string) => {
-  return ((corpus || "").match(term) || []).length;
+  return ((corpus || "").match(new RegExp(term, "g")) || []).length;
 };
 
 /** Inverse document frequency. */
