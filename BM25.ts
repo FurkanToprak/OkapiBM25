@@ -38,9 +38,9 @@ export function BM25(
   );
   const averageDocumentLength =
     documentLengths.reduce((a, b) => a + b, 0) / documents.length;
-  const scores = documents.map((document: string) => {
+  const scores = documents.map((document: string, index: number) => {
     const score = keywords
-      .map((keyword: string, index: number) => {
+      .map((keyword: string) => {
         const inverseDocumentFrequency = getIDF(keyword, documents);
         const termFrequency = getTermFrequency(keyword, document);
         const documentLength = documentLengths[index];
