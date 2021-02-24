@@ -7,10 +7,19 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "furkantoprak",
-  "keywords": ["okapi", "bm25", "ranking", "relevance", "information retrieval"],
+  "keywords": [
+    "okapi",
+    "bm25",
+    "ranking",
+    "relevance",
+    "information retrieval"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/FurkanToprak/OkapiBM25.git"
   },
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "typescript": "^4.2.2"
+  }
 }

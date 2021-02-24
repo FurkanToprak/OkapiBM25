@@ -31,9 +31,9 @@ function BM25(documents, keywords, constants) {
         return getWordCount(document);
     });
     var averageDocumentLength = documentLengths.reduce(function (a, b) { return a + b; }, 0) / documents.length;
-    var scores = documents.map(function (document) {
+    var scores = documents.map(function (document, index) {
         var score = keywords
-            .map(function (keyword, index) {
+            .map(function (keyword) {
             var inverseDocumentFrequency = getIDF(keyword, documents);
             var termFrequency = getTermFrequency(keyword, document);
             var documentLength = documentLengths[index];
