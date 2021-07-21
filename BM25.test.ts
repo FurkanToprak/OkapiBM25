@@ -36,6 +36,7 @@ test("Make sure word count is detected correctly", () => {
 });
 
 test("Expect word frequency to be detected correctly", () => {
-  const emptyWordFrequency = getTermFrequency(null, "anything");
+  // @ts-ignore
+  const emptyWordFrequency = getTermFrequency("anything", null);
   expect(emptyWordFrequency).toBe(0);
 });
