@@ -6,7 +6,8 @@
   "types": "dist/BM25.d.ts",
   "scripts": {
     "test": "jest",
-    "prepublish": "npm run test && rm -rf dist && tsc"
+    "prepublish": "npm run test && rm -rf dist && tsc",
+    "make-badges": "istanbul-badges-readme"
   },
   "author": "furkantoprak",
   "keywords": [
@@ -24,6 +25,7 @@
   "devDependencies": {
     "@babel/preset-typescript": "^7.14.5",
     "@types/jest": "^26.0.24",
+    "istanbul-badges-readme": "^1.4.0",
     "jest": "^27.0.6",
     "ts-node": "^10.1.0",
     "typescript": "^4.2.2"
