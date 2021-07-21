@@ -6,7 +6,7 @@
   "types": "dist/BM25.d.ts",
   "scripts": {
     "test": "jest",
-    "prepublish": "npm run test && rm -rf dist && tsc",
+    "prepublish": "npm run test && npm run make-badges && rm -rf dist && tsc",
     "make-badges": "istanbul-badges-readme"
   },
   "author": "furkantoprak",
