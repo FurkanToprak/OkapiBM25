@@ -39,4 +39,24 @@ test("Expect word frequency to be detected correctly", () => {
   // @ts-ignore
   const emptyWordFrequency = getTermFrequency("anything", null);
   expect(emptyWordFrequency).toBe(0);
+  const expectResults = [
+    {
+      corpus: "Pass the pass.",
+      term: "pass",
+      expect: 1,
+    },
+    {
+      corpus: "Pass the pass.",
+      term: "Pass",
+      expect: 1,
+    },{
+        corpus: "Pass.pass.pass.",
+        term: "pass",
+        expect: 2,
+      },
+  ];
+  expectResults.forEach((expectResult) => {
+    const result = getTermFrequency(expectResult.term, expectResult.corpus);
+    expect(result).toBe(expectResult.expect);
+  });
 });
