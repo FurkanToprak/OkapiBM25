@@ -1,5 +1,5 @@
 "use strict";
-exports.__esModule = true;
+Object.defineProperty(exports, "__esModule", { value: true });
 exports.BM25 = void 0;
 /** Gets word count. */
 var getWordCount = function (corpus) {
@@ -47,3 +47,4 @@ function BM25(documents, keywords, constants) {
     return scores;
 }
 exports.BM25 = BM25;
+//# sourceMappingURL=BM25.js.map
