@@ -1,15 +1,15 @@
 /** Gets word count. */
-const getWordCount = (corpus: string) => {
+export const getWordCount = (corpus: string) => {
   return ((corpus || "").match(/\w+/g) || []).length;
 };
 
 /** Number of occurences of a word in a string. */
-const getTermFrequency = (term: string, corpus: string) => {
+export const getTermFrequency = (term: string, corpus: string) => {
   return ((corpus || "").match(new RegExp(term, "g")) || []).length;
 };
 
 /** Inverse document frequency. */
-const getIDF = (term: string, documents: string[]) => {
+export const getIDF = (term: string, documents: string[]) => {
   // Number of relevant documents.
   const relevantDocuments = documents.filter((document: string) =>
     document.includes(term)
@@ -26,7 +26,7 @@ const getIDF = (term: string, documents: string[]) => {
  *  where k1 is within [1.2, 2.0] and b = 0.75, in absence of advanced optimization.
  *  In this implementation, k1 = 1.2.
  */
-export function BM25(
+export default function BM25(
   documents: string[],
   keywords: string[],
   constants?: { b?: number; k1?: number }
