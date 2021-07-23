@@ -55,3 +55,24 @@ export default function BM25(
   });
   return scores;
 }
+
+/** Sorts a list of object by their BM25 score
+ * @param query: the term to search
+ * @param objects: an unordered list of object
+ * @param key_func: a function that takes an object from the list
+ * and returns a string to be evaluated by the BM25 algorithm.
+ * If not set, the object is evaluated.
+ */
+export function bm25sort(query, objects, key_func=null) {
+    var keys = key_func ? objects.map(key_func) : objects;
+    var scores = BM25(keys, query)
+    var container = [];
+    for (var i in scores) {
+        container.push({
+            obj: objects[i],
+            score: scores[i],
+        })
+    }
+    container.sort((a, b) => b.score - a.score)
+    return container.map(elt => elt.obj)
+}

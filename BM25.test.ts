@@ -1,4 +1,4 @@
-import BM25, { getTermFrequency, getWordCount } from "./BM25";
+import BM25, { getTermFrequency, getWordCount, bm25sort } from "./BM25";
 
 test("Irrelevant queries should return 0.", () => {
   const documents = ["fee", "fi", "fum"];
@@ -60,3 +60,31 @@ test("Expect word frequency to be detected correctly", () => {
     expect(result).toBe(expectResult.expect);
   });
 });
+
+test('Tests that the bm25sort method works properly', () => {
+    var objects = [
+        {"id": "foo", "description": "Lorem ipsum dolor sit amet"},
+        {"id": "bar", "description": "Abra Kadabra Abra"},
+        {"id": "baz", "description": "Abra Alakazam"},
+    ]
+    var sorted = bm25sort(["Abra"], objects, obj => obj.description)
+    expect(sorted).toStrictEqual([
+        {"id": "bar", "description": "Abra Kadabra Abra"},
+        {"id": "baz", "description": "Abra Alakazam"},
+        {"id": "foo", "description": "Lorem ipsum dolor sit amet"},
+    ]);
+})
+
+test('Tests that the bm25sort method works properly, without key_func', () => {
+    var objects = [
+        "Lorem ipsum dolor sit amet",
+        "Abra Kadabra Abra",
+        "Abra Alakazam",
+    ]
+    var sorted = bm25sort(["Abra"], objects)
+    expect(sorted).toStrictEqual([
+        "Abra Kadabra Abra",
+        "Abra Alakazam",
+        "Lorem ipsum dolor sit amet",
+    ]);
+})

@@ -14,8 +14,8 @@ Check out the [NPM package.](https://www.npmjs.com/package/okapibm25)
 npm install okapibm25 --save
 ```
 ## Usage
-```
-import { BM25 } from "okapibm25";
+```typescript
+import { BM25, bm25sort } from "okapibm25";
 
 const documents = [
   "place",
@@ -28,6 +28,19 @@ const query = ["keywords", "of", "your", "query."];
 const result = BM25(documents, query, { k1: 1.3, b: 0.9 });
 console.log(result);
 
+var objects = [
+    {"id": "foo", "description": "Lorem ipsum dolor sit amet"},
+    {"id": "bar", "description": "Abra Kadabra Abra"},
+    {"id": "baz", "description": "Abra Alakazam"},
+]
+var sorted = bm25sort(["Abra"], objects, obj => obj.description)
+console.log(sorted);
+
+/* [
+ *    {"id": "bar", "description": "Abra Kadabra Abra"},
+ *    {"id": "baz", "description": "Abra Alakazam"},
+ *    {"id": "foo", "description": "Lorem ipsum dolor sit amet"},
+ * ]
 ```
 ## License
 Under `license.md`
