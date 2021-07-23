@@ -9,6 +9,7 @@
 A strongly typed, well-tested implementation of the Okapi BM25 algorithm. Just provide your documents to search, query keywords, and (optionally) your weights (*b* and *k1*).
 
 ## Installation
+Check out the [NPM package.](https://www.npmjs.com/package/okapibm25)
 ```
 npm install okapibm25 --save
 ```
