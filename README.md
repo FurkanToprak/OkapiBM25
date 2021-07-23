@@ -6,7 +6,7 @@
 ![Lines](https://img.shields.io/badge/lines-100%25-brightgreen.svg)
 
 
-There was no satisfactory implementation of the Okapi BM25 algorithm, so here is one to use. Just provide your documentations, query keywords, and (optionally) your weights (*b* and *k1*).
+A strongly typed, well-tested implementation of the Okapi BM25 algorithm. Just provide your documentations, query keywords, and (optionally) your weights (*b* and *k1*).
 
 ## Installation
 ```
@@ -30,3 +30,6 @@ console.log(result);
 ```
 ## License
 Under `license.md`
+
+## Contributing
+Submit a Pull Request if you have a useful feature that you'd like to add. If you're too lazy or this isn't your area of expertise, open an issue and I'll get to it.
