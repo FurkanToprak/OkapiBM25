@@ -1,4 +1,4 @@
-import BM25, { getTermFrequency, getWordCount } from "./BM25";
+import BM25, { BMDocument, getTermFrequency, getWordCount } from "./BM25";
 
 describe("Bare bones functionality", () => {
   test("Irrelevant queries should return 0.", () => {
@@ -66,54 +66,44 @@ describe("Bare bones functionality", () => {
 
 describe("Testing fancy sorting mechanism.", () => {
   test("Should sort in ascending order", () => {
-    const expectResults = [
-      {
-        corpus: "The least relevant",
-        index: 0,
-      },
-      {
-        corpus: "The most relevant relevant relevant relevant",
-        index: 2,
-      },
-      {
-        corpus: "Medium relevant relevant",
-        index: 1,
-      },
-    ];
-    const corpuses = expectResults.map((expectResult) => expectResult.corpus);
-    const result = BM25(
+    const expectResults = new Map<number, string>();
+    expectResults.set(0, "The least relevant");
+    expectResults.set(1, "Medium relevant relevant");
+    expectResults.set(2, "The most relevant relevant relevant relevant");
+
+    const corpuses = Array.from(expectResults.values());
+    const results = BM25(
       corpuses,
       ["relevant"],
       undefined,
       (firstEl, secondEl) => {
         return firstEl.score - secondEl.score;
       }
-    );
+    ) as BMDocument[];
+    results.forEach((result, index) => {
+      const expectedDocument = expectResults.get(index);
+      expect(expectedDocument).toEqual(result.document);
+    });
   });
 
   test("Should sort in descending order", () => {
-    const expectResults = [
-      {
-        corpus: "The least relevant",
-        index: 2,
-      },
-      {
-        corpus: "The most relevant relevant relevant relevant",
-        index: 0,
-      },
-      {
-        corpus: "Medium relevant relevant",
-        index: 1,
-      },
-    ];
-    const corpuses = expectResults.map((expectResult) => expectResult.corpus);
-    const result = BM25(
+    const expectResults = new Map<number, string>();
+    expectResults.set(2, "The least relevant");
+    expectResults.set(1, "Medium relevant relevant");
+    expectResults.set(0, "The most relevant relevant relevant relevant");
+
+    const corpuses = Array.from(expectResults.values());
+    const results = BM25(
       corpuses,
       ["relevant"],
       undefined,
       (firstEl, secondEl) => {
         return secondEl.score - firstEl.score;
       }
-    );
+    ) as BMDocument[];
+    results.forEach((result, index) => {
+      const expectedDocument = expectResults.get(index);
+      expect(expectedDocument).toEqual(result.document);
+    });
   });
 });
