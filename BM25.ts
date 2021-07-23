@@ -42,14 +42,15 @@ export type BMSorter = (first: BMDocument, second: BMDocument) => boolean;
  *  @param documents: Collection of documents.
  *  @param keywords: query terms.
  *  @param constants: Contains free parameters k1 and b. b=0.75 and k1=1.2 by default.
- *  @param sort: A function that allows you to sort queries by a given rule. If not provided, returns results corresponding to the original order.
+ *  @param sort: A function that allows you to sort queries by a given rule. If not provided, returns results corresponding to the original order. 
+ * If this option is provided, the return type will not be an array of scores but an array of documents with their scores.
  */
 export default function BM25(
   documents: string[],
   keywords: string[],
   constants?: BMConstants,
-  sort?: BMSorter
-): number[] {
+  sorter?: BMSorter
+): number[] | BMDocument[] {
   const b = constants && constants.b ? constants.b : 0.75;
   const k1 = constants && constants.k1 ? constants.k1 : 1.2;
   const documentLengths = documents.map((document: string) =>
@@ -72,5 +73,9 @@ export default function BM25(
       .reduce((a: number, b: number) => a + b, 0);
     return score;
   });
+  // sort the results
+  if (sorter) {
+    return [] as BMDocument[];
+  }
   return scores;
 }
