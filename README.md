@@ -6,7 +6,7 @@
 ![Lines](https://img.shields.io/badge/lines-100%25-brightgreen.svg)
 
 
-A strongly typed, well-tested implementation of the Okapi BM25 algorithm. Just provide your documentations, query keywords, and (optionally) your weights (*b* and *k1*).
+A strongly typed, well-tested implementation of the Okapi BM25 algorithm. Just provide your documents to search, query keywords, and (optionally) your weights (*b* and *k1*).
 
 ## Installation
 ```
