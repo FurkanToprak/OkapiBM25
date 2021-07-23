@@ -36,7 +36,8 @@ export interface BMConstants {
   k1?: number;
 }
 
-export type BMSorter = (first: BMDocument, second: BMDocument) => boolean;
+/** If returns positive, the sorting results in secondEl coming before firstEl, else, firstEl comes before secondEL  */
+export type BMSorter = (firstEl: BMDocument, secondEl: BMDocument) => number;
 
 /** Implementation of Okapi BM25 algorithm.
  *  @param documents: Collection of documents.
@@ -78,7 +79,7 @@ export default function BM25(
   });
   // sort the results
   if (sorter) {
-    return [] as BMDocument[];
+    return (scores as BMDocument[]).sort(sorter);
   }
   return scores as number[];
 }
