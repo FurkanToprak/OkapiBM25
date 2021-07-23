@@ -71,11 +71,14 @@ export default function BM25(
         );
       })
       .reduce((a: number, b: number) => a + b, 0);
+    if (sorter) {
+      return { score, document} as BMDocument
+    }
     return score;
   });
   // sort the results
   if (sorter) {
     return [] as BMDocument[];
   }
-  return scores;
+  return scores as number[];
 }
