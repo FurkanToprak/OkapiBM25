@@ -19,17 +19,36 @@ export const getIDF = (term: string, documents: string[]) => {
   );
 };
 
+/** Represents a document; useful when sorting results.
+ */
+export interface BMDocument {
+  /** The document is originally scoreed. */
+  document: string;
+  /** The score that the document recieves. */
+  score: number;
+}
+
+/** Constants that are free parameters used in BM25, specifically when generating inverse document frequency. */
+export interface BMConstants {
+  /** Free parameter. Is 0.75 by default.  */
+  b?: number;
+  /** Free parameter. Is 1.2 by default. Generally in range [1.2, 2.0] */
+  k1?: number;
+}
+
+export type BMSorter = (first: BMDocument, second: BMDocument) => boolean;
+
 /** Implementation of Okapi BM25 algorithm.
- *  @param documents: string[]. Collection of documents.
- *  @param keywords: keywords within query.
- *  @param constants: Contains free parameters k1 and b, which are free parameters,
- *  where k1 is within [1.2, 2.0] and b = 0.75, in absence of advanced optimization.
- *  In this implementation, k1 = 1.2.
+ *  @param documents: Collection of documents.
+ *  @param keywords: query terms.
+ *  @param constants: Contains free parameters k1 and b. b=0.75 and k1=1.2 by default.
+ *  @param sort: A function that allows you to sort queries by a given rule. If not provided, returns results corresponding to the original order.
  */
 export default function BM25(
   documents: string[],
   keywords: string[],
-  constants?: { b?: number; k1?: number }
+  constants?: BMConstants,
+  sort?: BMSorter
 ): number[] {
   const b = constants && constants.b ? constants.b : 0.75;
   const k1 = constants && constants.k1 ? constants.k1 : 1.2;

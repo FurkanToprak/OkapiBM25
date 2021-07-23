@@ -29,6 +29,9 @@ const result = BM25(documents, query, { k1: 1.3, b: 0.9 });
 console.log(result);
 
 ```
+## What's this?
+An implementation of OkapiBM25 (AKA BM25), a [bag-of-words](https://en.wikipedia.org/wiki/Bag-of-words_model) information retrieval algorithm. [Read up on it here](https://en.wikipedia.org/wiki/Okapi_BM25).
+
 ## License
 Under `license.md`
 
