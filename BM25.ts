@@ -60,14 +60,14 @@ export default function BM25(
   const averageDocumentLength =
     documentLengths.reduce((a, b) => a + b, 0) / documents.length;
   const idfByKeyword = keywords.reduce((obj, keyword) => {
-    obj[keyword] = getIDF(keyword, documents);
+    obj.set(keyword, getIDF(keyword, documents));
     return obj;
-  }, {});
+  }, new Map<string, number>());
 
   const scores = documents.map((document: string, index: number) => {
     const score = keywords
       .map((keyword: string) => {
-        const inverseDocumentFrequency = idfByKeyword[keyword];
+        const inverseDocumentFrequency = idfByKeyword.get(keyword);
         const termFrequency = getTermFrequency(keyword, document);
         const documentLength = documentLengths[index];
         return (
