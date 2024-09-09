@@ -1,6 +1,6 @@
 {
   "name": "okapibm25",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "A simple, easy to use implementation of the Okapi BM25 algorithm.",
   "main": "dist/BM25.js",
   "types": "dist/BM25.d.ts",
@@ -23,6 +23,7 @@
   },
   "license": "MIT",
   "devDependencies": {
+    "@babel/preset-env": "^7.25.4",
     "@babel/preset-typescript": "^7.14.5",
     "@types/jest": "^26.0.24",
     "istanbul-badges-readme": "^1.4.0",
