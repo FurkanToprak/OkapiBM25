@@ -1,4 +1,4 @@
-# @furkantoprak/bm25
+# okapibm25
 
 ![NPM Downloads](https://img.shields.io/npm/dy/okapibm25)
 ![Statements](https://img.shields.io/badge/statements-100%25-brightgreen.svg)
