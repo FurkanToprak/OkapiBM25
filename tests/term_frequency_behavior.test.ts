@@ -40,14 +40,14 @@ describe("Term Frequency scaling in BM25", () => {
 
         // Get the score for each doc so we can compare them
         // Keep k1 > 0 so TF is active and use normal b
-        const s1 = (BM25([d1], q, { k1: 1.2, b: 0.75 }) as number[])[0];
-        const s3 = (BM25([d3], q, { k1: 1.2, b: 0.75 }) as number[])[0];
-        const s9 = (BM25([d9], q, { k1: 1.2, b: 0.75 }) as number[])[0];
+        const score_tf1 = (BM25([d1], q, { k1: 1.2, b: 0.75 }) as number[])[0];
+        const score_tf3 = (BM25([d3], q, { k1: 1.2, b: 0.75 }) as number[])[0];
+        const score_tf9 = (BM25([d9], q, { k1: 1.2, b: 0.75 }) as number[])[0];
 
-        const delta13 = s3 - s1; // the increase of TF from 1 to 3 
-        const delta39 = s9 - s3; // the increase of TF from 3 to 9
+        const gain_1_to_3 = score_tf3 - score_tf1; // the increase of TF from 1 to 3 
+        const gain_3_to_9 = score_tf9 - score_tf3; // the increase of TF from 3 to 9
 
         // first increase should be bigger than the second
-        expect(delta13).toBeGreaterThan(delta39);
+        expect(gain_1_to_3).toBeGreaterThan(gain_3_to_9);
     });
 })

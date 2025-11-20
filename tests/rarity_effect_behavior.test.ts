@@ -1,4 +1,4 @@
-import BM25 from "../BM25";
+import BM25, { getWordCount } from "../BM25";
 
 /*
     Checking the "rarity effect" in BM25 by comparing scores for any rare term
@@ -10,6 +10,11 @@ describe("Rare vs common term behavior in BM25", () => {
         const commonDoc = "dog cat cat cat cat";
         const fillers = Array.from({ length: 8}, () => "dog cat cat cat cat"); //make "dog" common
         const collection = [rareDoc, commonDoc, ...fillers]; // N = 10
+
+        // length checks (all docs should be 5)
+        expect(getWordCount(rareDoc)).toBe(5);
+        expect(getWordCount(commonDoc)).toBe(5);
+        fillers.forEach(f => expect(getWordCount(f)).toBe(5));
 
         const scoreOf = (query: string[], which: number) =>
             (BM25(collection, query, { k1: 1.2, b: 0.75 }) as number[])[which];
@@ -27,6 +32,12 @@ describe("Rare vs common term behavior in BM25", () => {
             "the dog dog dog dog",
             "the zebra zebra zebra zebra"
         ]
+
+        // length checks
+        expect(getWordCount(docs[0])).toBe(5);
+        expect(getWordCount(docs[1])).toBe(5);
+        expect(getWordCount(docs[2])).toBe(5);
+        
         const scores = BM25(docs, ["the"], { k1: 1.2, b:0.75 }) as number[];
 
         // Since "the" appears the same amount in each doc, scores should be close to equal.
