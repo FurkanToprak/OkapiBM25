@@ -31,7 +31,7 @@ console.log(result);
 
 ```
 ### Sorting
-A recent update allows you to sort your documents. [This works very similar to JavaScript's Array.prototype.sort() function.](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort)
+You can sort your documents. [This works very similar to JavaScript's Array.prototype.sort() function.](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort)
 
 Here is an example of how to sort in descending order (by score).
 ```
