@@ -52,8 +52,12 @@ export default function BM25(
   constants?: BMConstants,
   sorter?: BMSorter
 ): number[] | BMDocument[] {
-  const b = constants && constants.b ? constants.b : 0.75;
-  const k1 = constants && constants.k1 ? constants.k1 : 1.2;
+  if (documents.length === 0) {
+    return [];
+  }
+
+  const b = constants && constants.b !== undefined ? constants.b : 0.75;
+  const k1 = constants && constants.k1 !== undefined ? constants.k1 : 1.2;
   const documentLengths = documents.map((document: string) =>
     getWordCount(document)
   );
@@ -70,15 +74,27 @@ export default function BM25(
         const inverseDocumentFrequency = idfByKeyword.get(keyword);
         const termFrequency = getTermFrequency(keyword, document);
         const documentLength = documentLengths[index];
+
+        if (termFrequency === 0) {
+          return 0;
+        }
+
+        if (k1 === 0) {
+          return inverseDocumentFrequency;
+        }
+
+        const lengthNormalization = b === 0
+          ? 1
+          : (1 - b + (b * documentLength) / averageDocumentLength);
+
         return (
           (inverseDocumentFrequency * (termFrequency * (k1 + 1))) /
-          (termFrequency +
-            k1 * (1 - b + (b * documentLength) / averageDocumentLength))
+          (termFrequency + k1 * lengthNormalization)
         );
       })
       .reduce((a: number, b: number) => a + b, 0);
     if (sorter) {
-      return { score, document} as BMDocument
+      return { score, document } as BMDocument
     }
     return score;
   });
