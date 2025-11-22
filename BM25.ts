@@ -22,7 +22,7 @@ export const getIDF = (term: string, documents: string[]) => {
 /** Represents a document; useful when sorting results.
  */
 export interface BMDocument {
-  /** The document is originally scoreed. */
+  /** The document is originally scored. */
   document: string;
   /** The score that the document recieves. */
   score: number;
