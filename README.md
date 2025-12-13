@@ -57,5 +57,5 @@ Under `license.md`
 ## Contributing
 Submit a Pull Request if you have a useful feature that you'd like to add. If you're too lazy or this isn't your area of expertise, open an issue and I'll get to it.
 
-## Sponsoring
+## Sponsorship
 Consider donating $5 to https://www.unicef.org/ if this has been useful to you.
