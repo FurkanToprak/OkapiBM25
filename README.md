@@ -7,10 +7,11 @@
 ![Lines](https://img.shields.io/badge/lines-100%25-brightgreen.svg)
 
 
-A strongly typed, well-tested implementation of the Okapi BM25 algorithm. Just provide your documents to search, query keywords, and (optionally) your weights (*b* and *k1*).
+A strongly typed, tested, and profiled implementation of the [Okapi BM25 algorithm](https://en.wikipedia.org/wiki/Okapi_BM25). Just provide your documents to search, query keywords, and (optionally) your weights (*b* and *k1*). 
+
+Install the [NPM package!](https://www.npmjs.com/package/okapibm25)
 
 ## Installation
-Check out the [NPM package.](https://www.npmjs.com/package/okapibm25)
 ```
 npm install okapibm25 --save
 ```
@@ -47,9 +48,6 @@ Here is an example of how to sort in descending order (by score).
 I've purposely given a schema that lets you sort results by more than just score; you could also sort alphabetically (or by how many times the word 'unicorn' is mentioned, for all I care!) by comparing the documents as well. You can also even ignore scores while sorting!
 
 *Important:* Note that enabling sorting changes the return type from `number[]` to `{ document: string; score: number; }[]`
-
-## What's this?
-An implementation of OkapiBM25 (AKA BM25), a [bag-of-words](https://en.wikipedia.org/wiki/Bag-of-words_model) information retrieval algorithm. [Read up on it here](https://en.wikipedia.org/wiki/Okapi_BM25).
 
 ## License
 Under `license.md`
