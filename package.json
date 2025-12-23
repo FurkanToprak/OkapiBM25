@@ -5,7 +5,6 @@
   "main": "dist/BM25.js",
   "types": "dist/BM25.d.ts",
   "scripts": {
-    "bench": "ts-node benchmarks/bm25_benchmark.ts",
     "test": "jest",
     "prepublish": "npm run test && npm run make-badges && rm -rf dist && tsc",
     "make-badges": "istanbul-badges-readme"
@@ -29,7 +28,6 @@
     "@types/jest": "^26.0.24",
     "istanbul-badges-readme": "^1.4.0",
     "jest": "^27.0.6",
-    "tinybench": "^5.1.0",
     "ts-node": "^10.1.0",
     "typescript": "^4.2.2"
   }
