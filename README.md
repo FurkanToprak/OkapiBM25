@@ -12,22 +12,25 @@ A strongly typed, tested, and profiled implementation of the [Okapi BM25 algorit
 Install the [NPM package!](https://www.npmjs.com/package/okapibm25)
 
 ## Installation
-```
+```bash
 npm install okapibm25 --save
 ```
 ## Usage
-```
+```ts
 import { BM25 } from "okapibm25";
 
 const documents = [
-  "place",
-  "documents",
-  "here",
-  "Each test document will be searched with the keywords specified below.",
+    "place",
+    "documents",
+    "here",
+    "Each test document will be searched with the keywords specified below.",
 ];
 const query = ["keywords", "of", "your", "query."];
 // A numerical scoring will be returned.
-const result = BM25(documents, query, { k1: 1.3, b: 0.9 }) as number[];
+const result = BM25(documents, query, {
+    k1: 1.3,
+    b: 0.9
+}) as number[];
 console.log(result);
 
 ```
@@ -35,15 +38,15 @@ console.log(result);
 You can sort your documents. [This works very similar to JavaScript's Array.prototype.sort() function.](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort)
 
 Here is an example of how to sort in descending order (by score).
-```
+```ts
  const results = BM25(
-      corpuses,
-      ["relevant"],
-      undefined,
-      (firstEl, secondEl) => {
-        return secondEl.score - firstEl.score;
-      }
-    ) as BMDocument[];
+     corpuses,
+     ["relevant"],
+     undefined,
+     (firstEl, secondEl) => {
+         return secondEl.score - firstEl.score;
+     }
+ ) as BMDocument[];
 ```
 I've purposely given a schema that lets you sort results by more than just score; you could also sort alphabetically (or by how many times the word 'unicorn' is mentioned, for all I care!) by comparing the documents as well. You can also even ignore scores while sorting!
 
