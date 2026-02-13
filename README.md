@@ -11,6 +11,12 @@ A strongly typed, tested, and profiled implementation of the [Okapi BM25 algorit
 
 Install the [NPM package!](https://www.npmjs.com/package/okapibm25)
 
+## Used by
+- https://www.llamaindex.ai
+- https://www.librechat.ai
+- https://illuma.cx
+- https://www.observee.com/
+
 ## Installation
 ```
 npm install okapibm25 --save
