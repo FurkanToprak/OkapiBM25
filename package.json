@@ -4,10 +4,16 @@
   "description": "A simple, easy to use implementation of the Okapi BM25 algorithm.",
   "main": "dist/BM25.js",
   "types": "dist/BM25.d.ts",
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
   "scripts": {
+    "build": "node scripts/clean.mjs && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
     "test": "jest",
-    "prepublish": "npm run test && npm run make-badges && rm -rf dist && tsc",
-    "make-badges": "istanbul-badges-readme"
+    "make-badges": "istanbul-badges-readme",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build && npm run make-badges"
   },
   "author": "furkantoprak",
   "keywords": [
@@ -15,20 +21,28 @@
     "bm25",
     "ranking",
     "relevance",
-    "information retrieval"
+    "information retrieval",
+    "search",
+    "typescript"
   ],
   "repository": {
     "type": "git",
     "url": "https://github.com/FurkanToprak/OkapiBM25.git"
   },
+  "bugs": {
+    "url": "https://github.com/FurkanToprak/OkapiBM25/issues"
+  },
+  "homepage": "https://github.com/FurkanToprak/OkapiBM25#readme",
   "license": "MIT",
   "devDependencies": {
-    "@babel/preset-env": "^7.25.4",
-    "@babel/preset-typescript": "^7.14.5",
-    "@types/jest": "^26.0.24",
-    "istanbul-badges-readme": "^1.4.0",
-    "jest": "^27.0.6",
-    "ts-node": "^10.1.0",
-    "typescript": "^4.2.2"
+    "@babel/core": "^7.29.13",
+    "@babel/preset-env": "^7.29.14",
+    "@babel/preset-typescript": "^7.29.7",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^22.20.7",
+    "fast-check": "^4.11.0",
+    "istanbul-badges-readme": "^1.9.0",
+    "jest": "^30.5.2",
+    "typescript": "^7.0.2"
   }
 }
