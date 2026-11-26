@@ -1,0 +1,8 @@
+[
+  {
+    "package": "@librechat/agents",
+    "version": "4.2.13",
+    "script": "downstream/librechat-agents.cjs",
+    "why": "The largest dependent: about 70,000 of the 160,000 weekly downloads of okapibm25 come through it (November 2026). It ranks tools with BM25 in its local tool search and asks for okapibm25 ^1.4.1, so its users get a new 1.x release without choosing to."
+  }
+]

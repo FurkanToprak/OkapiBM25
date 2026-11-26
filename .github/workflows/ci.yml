@@ -37,6 +37,30 @@ jobs:
         run: npm test
       - name: Build, then install the packed tarball and load it
         run: npm run test:package
+      - name: Public types and exports match the committed snapshot
+        run: node scripts/check-api.mjs
+
+  # The packed package in setups other than this repository's own: old
+  # TypeScript versions, bundlers, and the ES2015 syntax level of the build.
+  consumers:
+    name: Old TypeScript versions, bundlers, ES2015
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            compat/package-lock.json
+      - run: npm ci --ignore-scripts
+      - name: Install the tools for the consumer checks
+        run: npm ci --ignore-scripts
+        working-directory: compat
+      - run: npm run test:compat
 
   benchmark:
     name: Not slower than 1.4.1

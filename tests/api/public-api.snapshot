@@ -1,0 +1,24 @@
+// Types: dist/BM25.d.ts
+export declare const getWordCount: (corpus: string) => number;
+export declare const getTermFrequency: (term: string, corpus: string) => number;
+export declare const getIDF: (term: string, documents: readonly string[]) => number;
+export interface BMDocument {
+    document: string;
+    score: number;
+}
+export interface BMConstants {
+    b?: number;
+    k1?: number;
+}
+export type BMSorter = (firstEl: BMDocument, secondEl: BMDocument) => number;
+export declare function BM25(documents: readonly string[], keywords: readonly string[], constants?: BMConstants): number[];
+export declare function BM25(documents: readonly string[], keywords: readonly string[], constants: BMConstants | undefined, sorter: BMSorter): BMDocument[];
+export declare function BM25(documents: readonly string[], keywords: readonly string[], constants?: BMConstants, sorter?: BMSorter): number[] | BMDocument[];
+export default BM25;
+
+// Names exported at run time by dist/BM25.js
+//   BM25
+//   default
+//   getIDF
+//   getTermFrequency
+//   getWordCount

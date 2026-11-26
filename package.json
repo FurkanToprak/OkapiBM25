@@ -13,8 +13,11 @@
     "typecheck": "tsc -p tsconfig.json",
     "test": "jest",
     "test:package": "npm run build && node scripts/check-package.mjs",
+    "test:api": "npm run build && node scripts/check-api.mjs",
+    "test:compat": "npm run build && node compat/run.mjs",
+    "test:downstream": "npm run build && node compat/downstream.mjs",
     "bench": "npm run build && node bench/bench.mjs",
-    "check": "npm run typecheck && npm test && npm run test:package",
+    "check": "npm run typecheck && npm test && npm run test:package && node scripts/check-api.mjs",
     "make-badges": "istanbul-badges-readme",
     "prepublishOnly": "npm run check && npm run make-badges"
   },
