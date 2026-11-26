@@ -1,8 +1,19 @@
 # Changelog
 
-## 1.5.0 - 2026-11-25
+## 2.0.0 - 2026-11-26
 
 Scores are unchanged for ordinary input: string documents, plain-text keywords, numeric `k1` and `b` above zero, and at least one document containing a word. The regression tests run the new code and the published 1.4.1 build on random input of that kind and require identical output, bit for bit. The cases below are the only ones where results differ.
+
+This is a major version because keywords are now matched as plain text. That changes the scores of keywords that contain punctuation.
+
+### Upgrading from 1.x
+Most callers need no change. Check these cases:
+- **Keywords with punctuation attached.** Punctuation is now part of what is matched. The keyword `dog?` matched `dog` in 1.4.1, because `?` was regular expression syntax. It now matches only the text `dog?`. If you get keywords by splitting a user's question on spaces, remove the punctuation from each word first.
+- **Keywords you escape yourself.** If your code escapes regular expression characters before calling `BM25`, for example `c\+\+` or `node\.js`, remove the escaping. The backslash is now matched as a character, so an escaped keyword scores zero.
+- **Keywords that were regular expressions on purpose**, such as `colou?r`. They no longer work as patterns. Pass each spelling as its own keyword.
+- **`k1` or `b` passed as strings.** Convert them with `Number()`.
+- **TypeScript casts.** A cast of the result to the type the call does not return is now a compile error. Remove the cast.
+- **ES5 environments.** The build is now ES2015.
 
 ### Fixed
 - **Keywords are matched as plain text, not as regular expressions.** In 1.4.1 a keyword such as `c++` or `(` threw a `SyntaxError`, `.` matched any character, and a crafted keyword such as `(a+)+$` could freeze the process (ReDoS). Keywords containing regular expression syntax now match their literal text. If you relied on passing a regular expression as a keyword, this release changes your results. The exported `getTermFrequency` changes in the same way.
