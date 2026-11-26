@@ -12,8 +12,11 @@
     "build": "node scripts/clean.mjs && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json",
     "test": "jest",
+    "test:package": "npm run build && node scripts/check-package.mjs",
+    "bench": "npm run build && node bench/bench.mjs",
+    "check": "npm run typecheck && npm test && npm run test:package",
     "make-badges": "istanbul-badges-readme",
-    "prepublishOnly": "npm run typecheck && npm test && npm run build && npm run make-badges"
+    "prepublishOnly": "npm run check && npm run make-badges"
   },
   "author": "furkantoprak",
   "keywords": [
