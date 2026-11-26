@@ -76,6 +76,8 @@ Under `license.md`
 ## Contributing
 Submit a Pull Request if you have a useful feature that you'd like to add. If you're too lazy or this isn't your area of expertise, open an issue and I'll get to it.
 
+Working on the package needs Node 22.18 or later. The published package itself runs on Node 12 and later.
+
 ```sh
 npm install
 npm run check   # typecheck, tests, build, package check

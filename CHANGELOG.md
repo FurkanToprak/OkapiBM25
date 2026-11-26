@@ -21,9 +21,9 @@ Scores are unchanged for ordinary input: string documents, plain-text keywords, 
 - `documents` and `keywords` accept read-only arrays.
 - Passing something other than an array for `documents` or `keywords` throws a `TypeError` that names the argument.
 - The published package contains only the build, the README and the license: 6 files and about 30 kB, down from 24 files and 70 kB. Test files, coverage reports and build configuration are no longer published.
-- The build targets ES2015 instead of ES5. It loads and runs on Node 12 and later. The full test suite runs on Node 18 and later.
+- The build targets ES2015 instead of ES5. It loads and runs on Node 12 and later. The test tools need Node 22.18 or later, so the full test suite runs on Node 22 and 24, and the build is loaded on Node 12 to 20.
 
 ### Added
 - Regression tests against the published 1.4.1 build, property-based tests, security tests, compile-time type tests and a check of the packed tarball.
 - A benchmark, `npm run bench`.
-- Continuous integration on Node 18, 20, 22 and 24.
+- Continuous integration: the full test suite on Node 22 and 24, the build on Node 12, 14, 16, 18 and 20.
