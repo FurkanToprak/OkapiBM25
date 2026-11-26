@@ -63,7 +63,7 @@ I've purposely given a schema that lets you sort results by more than just score
 ### How matching works
 - A keyword matches wherever its exact text appears in a document, including inside a longer word: `"cat"` matches `"concatenate"`.
 - Matching is case-sensitive. To ignore case, lowercase your documents and your keywords before calling `BM25`.
-- Keywords are plain text, never regular expressions. `"c++"`, `"(draft)"` and anything else a user types into a search box are safe to pass in as they are.
+- Keywords are plain text, never regular expressions. `"c++"`, `"(draft)"` and anything else a user types into a search box are safe to pass in as they are. Version 1 treated keywords as regular expressions; if you are upgrading, see "Upgrading from 1.x" in `CHANGELOG.md`.
 - Document length is the number of words, where a word is a run of the characters `a-z`, `A-Z`, `0-9` and `_`.
 - `k1` and `b` default to `1.2` and `0.75`. Both accept `0`: `k1: 0` ignores how often a keyword occurs and `b: 0` ignores document length.
 

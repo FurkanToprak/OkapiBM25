@@ -114,6 +114,14 @@ jobs:
           retention-days: 30
       # A failure in any step below fails the job, and the publish job then
       # does not run.
+      # The publish job's own command, as a dry run: npm reads the tarball and
+      # checks the version against the registry, and uploads nothing. It needs
+      # no login. Keep it identical to the command in the publish job.
+      - name: Dry run of the publish command
+        if: needs.plan.outputs.publish == 'true'
+        env:
+          TAG: ${{ needs.plan.outputs.tag }}
+        run: npm publish ./release/*.tgz --tag "$TAG" --dry-run
       # The tests fail below 100% coverage, so the badges in the README hold.
       - name: Typecheck, tests, build, package check and API snapshot
         run: npm run check
@@ -166,7 +174,9 @@ jobs:
           if [ "$status" = "200" ]; then
             echo "$NAME@$VERSION is already on npm."
           else
-            npm publish release/*.tgz --tag "$TAG"
+            # The leading ./ matters: npm reads "release/x.tgz" as the GitHub
+            # repository x.tgz of the user "release", not as a file.
+            npm publish ./release/*.tgz --tag "$TAG"
           fi
       - name: Tag the commit and create the GitHub release
         env:
