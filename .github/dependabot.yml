@@ -7,6 +7,20 @@ updates:
     groups:
       dev-dependencies:
         dependency-type: development
+  # The bundlers and tools used by the consumer checks in compat/.
+  - package-ecosystem: npm
+    directory: /compat
+    schedule:
+      interval: monthly
+    groups:
+      compat-tools:
+        patterns: ["*"]
+    # compat/ pins old TypeScript versions on purpose, to check that the
+    # published types still work for users who have not upgraded. The current
+    # TypeScript is the one in the root package.json.
+    ignore:
+      - dependency-name: "typescript-*"
+      - dependency-name: "typescript"
   - package-ecosystem: github-actions
     directory: /
     schedule:

@@ -1,0 +1,48 @@
+name: Downstream
+
+# Runs packages that depend on okapibm25 twice, once with the version that is
+# on npm and once with the build from this branch, and requires the same
+# output. See compat/downstream.mjs and compat/downstream.json.
+
+on:
+  # Any change that can alter what the package does or how it is built.
+  pull_request:
+    paths:
+      - BM25.ts
+      - package.json
+      - package-lock.json
+      - tsconfig.build.json
+      - scripts/clean.mjs
+      - compat/downstream.mjs
+      - compat/downstream.json
+      - compat/downstream/**
+      - .github/workflows/downstream.yml
+  # Weekly, to notice when a dependent or the registry changes under us.
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: downstream-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  downstream:
+    name: Dependents behave the same as with the published version
+    runs-on: ubuntu-latest
+    steps:
+      # Actions are pinned to a commit so a moved tag cannot change what runs.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      # Downloads the dependents from npm and runs their code. Their install
+      # scripts are not run, and this job has no secrets and a read-only token.
+      - run: npm run test:downstream
