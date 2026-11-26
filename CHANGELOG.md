@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.5.0 - 2026-11-25
 
 Scores are unchanged for ordinary input: string documents, plain-text keywords, numeric `k1` and `b` above zero, and at least one document containing a word. The regression tests run the new code and the published 1.4.1 build on random input of that kind and require identical output, bit for bit. The cases below are the only ones where results differ.
 
