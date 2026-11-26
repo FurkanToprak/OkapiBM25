@@ -32,12 +32,13 @@ describe("Bare bones functionality", () => {
       const wordCount = getWordCount(expectResult.corpus);
       expect(wordCount).toBe(expectResult.expect);
     });
+    // @ts-expect-error JavaScript callers may pass null.
     const emptyWordCount = getWordCount(null);
     expect(emptyWordCount).toBe(0);
   });
 
   test("Expect word frequency to be detected correctly", () => {
-    // @ts-ignore
+    // @ts-expect-error JavaScript callers may pass null.
     const emptyWordFrequency = getTermFrequency("anything", null);
     expect(emptyWordFrequency).toBe(0);
     const expectResults = [
