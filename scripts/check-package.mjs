@@ -6,9 +6,12 @@
 //   3. compiles a strict TypeScript consumer against the published types.
 //
 // Run with `npm run test:package`, which builds first.
+//
+// With `--from-registry <name@version>` nothing is packed. The package is
+// installed from npm instead, and the same checks run on what npm serves.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,6 +20,24 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const onWindows = process.platform === "win32";
 const npm = onWindows ? "npm.cmd" : "npm";
 const tsc = join(root, "node_modules", ".bin", onWindows ? "tsc.cmd" : "tsc");
+const { name: packageName } = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+
+const registryFlag = process.argv.indexOf("--from-registry");
+const registrySpec = registryFlag === -1 ? undefined : process.argv[registryFlag + 1];
+if (registryFlag !== -1 && !registrySpec) {
+  // Without this, a forgotten value would quietly check the local tree.
+  throw new Error("--from-registry needs a package to install, for example okapibm25@1.5.0");
+}
+
+// Every file under a directory, as sorted paths relative to it.
+const listFiles = (directory, prefix = "") =>
+  readdirSync(directory, { withFileTypes: true })
+    .flatMap((entry) =>
+      entry.isDirectory()
+        ? listFiles(join(directory, entry.name), `${prefix}${entry.name}/`)
+        : [`${prefix}${entry.name}`]
+    )
+    .sort();
 
 const run = (command, args, cwd) => {
   try {
@@ -102,26 +123,32 @@ export const ranked: BMDocument[] = BM25(["a cat"], ["cat"], undefined, (first, 
 
 const workDirectory = mkdtempSync(join(tmpdir(), "okapibm25-package-"));
 try {
-  // 1. What gets published.
-  const [packed] = JSON.parse(
-    run(npm, ["pack", "--json", "--pack-destination", workDirectory], root)
-  );
-  const publishedFiles = packed.files.map((file) => file.path).sort();
+  // 1. What gets published, installed into an empty project.
+  const consumer = join(workDirectory, "consumer");
+  mkdirSync(consumer);
+  writeFileSync(join(consumer, "package.json"), JSON.stringify({ name: "consumer", private: true }));
+  const install = ["install", "--no-audit", "--no-fund", "--ignore-scripts", "--no-package-lock"];
+  let publishedFiles;
+  let source;
+  if (registrySpec) {
+    run(npm, [...install, registrySpec], consumer);
+    publishedFiles = listFiles(join(consumer, "node_modules", packageName));
+    source = `${registrySpec} from npm`;
+  } else {
+    const [packed] = JSON.parse(
+      run(npm, ["pack", "--json", "--pack-destination", workDirectory], root)
+    );
+    publishedFiles = packed.files.map((file) => file.path).sort();
+    run(npm, [...install, "--offline", join(workDirectory, packed.filename)], consumer);
+    source = `${packed.unpackedSize} bytes unpacked`;
+  }
   assert.deepEqual(
     publishedFiles,
     expectedFiles,
     "The published file list changed. Update expectedFiles in scripts/check-package.mjs if that is intended."
   );
 
-  // 2. Install into an empty project and load by package name.
-  const consumer = join(workDirectory, "consumer");
-  mkdirSync(consumer);
-  writeFileSync(join(consumer, "package.json"), JSON.stringify({ name: "consumer", private: true }));
-  run(
-    npm,
-    ["install", "--offline", "--no-audit", "--no-fund", "--ignore-scripts", "--no-package-lock", join(workDirectory, packed.filename)],
-    consumer
-  );
+  // 2. Load by package name.
   writeFileSync(join(consumer, "consumer.cjs"), commonJsConsumer);
   writeFileSync(join(consumer, "consumer.mjs"), esModuleConsumer);
   run(process.execPath, ["consumer.cjs"], consumer);
@@ -148,7 +175,7 @@ try {
   run(tsc, ["-p", "tsconfig.esm.json"], consumer);
 
   console.log(
-    `Package check passed: ${publishedFiles.length} files, ${packed.unpackedSize} bytes unpacked. ` +
+    `Package check passed: ${publishedFiles.length} files, ${source}. ` +
       "require, import and TypeScript consumers all work."
   );
 } finally {

@@ -23,7 +23,8 @@ on:
     paths:
       - package.json
       - .github/workflows/publish.yml
-      - scripts/publish-plan.mjs
+      - scripts/**
+      - compat/**
   # Starts a fresh run by hand, for a publish that failed before reaching npm.
   # If npm has the version but the GitHub release is missing, use "Re-run
   # failed jobs" on the failed run instead: a fresh run sees the version on npm
@@ -109,11 +110,22 @@ jobs:
           path: release/
           if-no-files-found: error
           overwrite: true
-          retention-days: 7
-      # A failure here fails the job, and the publish job then does not run.
+          # Kept this long so a failed publish or verify job can be re-run.
+          retention-days: 30
+      # A failure in any step below fails the job, and the publish job then
+      # does not run.
       # The tests fail below 100% coverage, so the badges in the README hold.
-      - name: Typecheck, tests, build and package check
+      - name: Typecheck, tests, build, package check and API snapshot
         run: npm run check
+      # The next two steps check the stored tarball itself, the exact file
+      # that the publish job uploads to npm.
+      - name: Install the tools for the consumer checks
+        run: npm ci --ignore-scripts
+        working-directory: compat
+      - name: Old TypeScript versions, bundlers and ES2015
+        run: node compat/run.mjs --tarball release/*.tgz
+      - name: Dependents behave the same as with the version on npm
+        run: node compat/downstream.mjs --tarball release/*.tgz
 
   # Publishes the tarball built above. This job runs no code from the
   # repository or its dependencies, only npm, curl and the GitHub CLI.
@@ -172,3 +184,27 @@ jobs:
             --title "v$VERSION" \
             --notes-file release/notes.md \
             "${flags[@]}"
+
+  # Installs the new version from npm, the way a user would, and checks that
+  # it is the tarball that was tested. This job has no permission to publish.
+  verify:
+    name: Check what npm serves
+    needs: [plan, publish]
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ needs.plan.outputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - run: npm ci --ignore-scripts
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release
+          path: release
+      - name: Same file as tested, right dist-tag, installs and loads
+        run: node scripts/verify-published.mjs --tarball release/*.tgz --tag "$TAG"
