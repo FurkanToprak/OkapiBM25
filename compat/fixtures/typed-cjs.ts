@@ -4,7 +4,12 @@ import BM25, {
   BM25 as NamedBM25,
   BMConstants,
   BMDocument,
+  BMHit,
+  BMIndex,
+  BMIndexOptions,
+  BMSearchOptions,
   BMSorter,
+  createIndex,
   getIDF,
   getTermFrequency,
   getWordCount,
@@ -20,3 +25,10 @@ export const ranked: BMDocument[] = NamedBM25(documents, ["cat"], undefined, sor
 export const castScores = BM25(["a cat"], ["cat"]) as number[];
 export const castRanked = BM25(["a cat"], ["cat"], undefined, sorter) as BMDocument[];
 export const numbers: number[] = [getIDF("a", ["a"]), getTermFrequency("a", "a"), getWordCount("a")];
+
+const indexOptions: BMIndexOptions = { caseSensitive: false, tokenizer: (text) => text.split(" ") };
+const searchOptions: BMSearchOptions = { k1: 1.2, b: 0.75, limit: 5 };
+export const index: BMIndex = createIndex(documents, indexOptions);
+export const hits: BMHit[] = index.search(["cat"], searchOptions);
+export const indexScores: number[] = index.scores(["cat"], constants);
+export const hitsAsDocuments: BMDocument[] = createIndex(documents).search(["cat"]);

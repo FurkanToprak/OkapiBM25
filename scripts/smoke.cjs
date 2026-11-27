@@ -20,4 +20,12 @@ assert.strictEqual(pkg.getWordCount("one two"), 2);
 assert.strictEqual(pkg.getTermFrequency("a", "banana"), 3);
 assert.ok(pkg.getIDF("a", documents) > 0);
 
+var index = pkg.createIndex(documents);
+var hits = index.search(["CAT", "dog?"], { limit: 5 });
+assert.strictEqual(hits.length, 2);
+assert.strictEqual(hits[0].index, 0);
+assert.strictEqual(hits[1].document, "a dog");
+assert.ok(hits[0].score > 0);
+assert.deepStrictEqual(index.scores(["cat"]), pkg.BM25(documents, ["cat"]));
+
 console.log("Build works on Node " + process.version);

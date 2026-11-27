@@ -7,7 +7,12 @@ import DefaultBM25, {
   BM25,
   BMConstants,
   BMDocument,
+  BMHit,
+  BMIndex,
+  BMIndexOptions,
+  BMSearchOptions,
   BMSorter,
+  createIndex,
   getIDF,
   getTermFrequency,
   getWordCount,
@@ -76,7 +81,52 @@ assertType<Equal<Parameters<typeof getTermFrequency>, [term: string, corpus: str
 assertType<Equal<ReturnType<typeof getIDF>, number>>();
 assertType<Equal<Parameters<typeof getIDF>, [term: string, documents: readonly string[]]>>();
 
+// The index: search() gives hits, scores() gives numbers.
+const index = createIndex(documents);
+assertType<Equal<typeof index, BMIndex>>();
+const hits = index.search(keywords);
+assertType<Equal<typeof hits, BMHit[]>>();
+const limitedHits = index.search(keywords, { k1: 1.5, b: 0.5, limit: 10 });
+assertType<Equal<typeof limitedHits, BMHit[]>>();
+const indexScores = index.scores(keywords, { k1: 1.5 });
+assertType<Equal<typeof indexScores, number[]>>();
+const configured = createIndex(readonlyDocuments, {
+  caseSensitive: true,
+  tokenizer: (text) => {
+    assertType<Equal<typeof text, string>>();
+    return text.split(" ");
+  },
+});
+assertType<Equal<typeof configured, BMIndex>>();
+assertType<Equal<ReturnType<typeof configured.search>, BMHit[]>>();
+const fromReadonlyKeywords = index.search(readonlyKeywords, readonlyConstants);
+assertType<Equal<typeof fromReadonlyKeywords, BMHit[]>>();
+// A hit is a scored document with its position, so it fits where a BMDocument is expected.
+const asDocuments: BMDocument[] = hits;
+assertType<Equal<typeof asDocuments, BMDocument[]>>();
+assertType<Equal<BMHit, { document: string; score: number; index: number }>>();
+assertType<Equal<BMIndexOptions, { caseSensitive?: boolean; tokenizer?: (text: string) => string[] }>>();
+assertType<Equal<BMSearchOptions, { b?: number; k1?: number; limit?: number }>>();
+
 // Mistakes that must not compile.
+// @ts-expect-error The index needs documents.
+createIndex();
+// @ts-expect-error Documents are a list, not one string.
+createIndex("a cat");
+// @ts-expect-error Unknown options are rejected.
+createIndex(documents, { lowercase: true });
+// @ts-expect-error A tokenizer returns words, not one string.
+createIndex(documents, { tokenizer: (text: string) => text });
+// @ts-expect-error Keywords are a list, not one string.
+index.search("cat");
+// @ts-expect-error The limit is a number.
+index.search(keywords, { limit: "10" });
+// @ts-expect-error scores() has no limit; it always returns one score per document.
+index.scores(keywords, { limit: 10 });
+// @ts-expect-error search() returns hits, not numbers.
+export const wrongHits: number[] = index.search(keywords);
+// @ts-expect-error scores() returns numbers, not hits.
+export const wrongIndexScores: BMHit[] = index.scores(keywords);
 // @ts-expect-error Documents are required.
 BM25();
 // @ts-expect-error Keywords are required.
