@@ -15,7 +15,8 @@
 Score and rank documents against search keywords with [Okapi BM25](https://en.wikipedia.org/wiki/Okapi_BM25), the ranking function behind most full-text search engines.
 
 - One function. Give it your documents and your keywords, get a score per document.
-- No dependencies, 2 kB gzipped.
+- An optional index for searching the same documents many times: about half a millisecond per search on 10,000 documents.
+- No dependencies, 5 kB gzipped.
 - Written in TypeScript, types included.
 - Runs on Node 12 and later, and in browsers through a bundler.
 - Safe with text typed by users: keywords are matched as plain text.
@@ -103,7 +104,65 @@ const best = scores
 
 The scores line up with `documents` by position, which is how the example gets back to the original text. Common words such as "the" and "is" are keywords like any other. If they drown out the words that matter, remove them from the keywords.
 
+An index, described next, does the lowercasing and the splitting for you.
+
+### Searching the same documents many times
+
+`BM25` reads all the text on every call. When the documents stay the same between searches, build an index once and search that instead:
+
+```ts
+import { createIndex } from "okapibm25";
+
+const index = createIndex(documents);
+
+const hits = index.search(["Quick", "dog?"]);
+// [
+//   { index: 1, document: "A quick guide to training your dog", score: 0.958 },
+//   { index: 0, document: "The quick brown fox jumps over the lazy dog", score: 0.860 },
+// ]
+
+const top = index.search(["quick", "dog"], { limit: 1, k1: 1.5, b: 0.5 });
+const all = index.scores(["quick", "dog"]);
+// [0.860, 0.958, 0]
+```
+
+- `search` returns the documents that contain at least one keyword, best match first. `index` is the position of the document in the array you gave to `createIndex`.
+- `scores` returns one score per document, like `BM25`.
+- The index is a snapshot of the documents. To add or change documents, build a new one.
+
+The index uses the same formula as `BM25`, but it matches differently:
+
+| | `BM25` | `createIndex` |
+|---|---|---|
+| What a keyword matches | Its exact text, anywhere: `"cat"` matches `"concatenate"` | Whole words: `"cat"` matches only the word `cat` |
+| Case | `"Dog"` and `"dog"` differ | Ignored, unless you pass `{ caseSensitive: true }` |
+| Punctuation in a keyword | Part of the text to find: `"c++"` finds `c++` | A gap between words: `"dog?"` finds `dog`, and `"c++"` finds the word `c` |
+| A keyword of several words | Found as a phrase: `"quick guide"` | Each word counts on its own |
+| What a word is | For document length only: a run of `a-z`, `A-Z`, `0-9` and `_` | A run of letters, digits and `_` in any script: `café` and `москва` are words |
+| `k1` and `b` out of range | Used as given | Rejected with an error |
+
+The formula is the same. With `{ caseSensitive: true }`, on English text, `index.scores` returns exactly the numbers `BM25` returns for keywords that are single words and occur only as whole words.
+
+Languages that are written without spaces, such as Japanese and Chinese, need your own function to split a text into words. It is used for the documents and for the keywords:
+
+```ts
+const segmenter = new Intl.Segmenter("ja", { granularity: "word" });
+
+const japaneseIndex = createIndex(["犬は速い", "猫は眠る"], {
+  tokenizer: (text) =>
+    Array.from(segmenter.segment(text))
+      .filter((part) => part.isWordLike)
+      .map((part) => part.segment),
+});
+japaneseIndex.search(["犬"]); // finds the first document
+```
+
+The same option is the place to remove common words or to cut endings off words.
+
 ## How matching works
+
+This is how `BM25` matches. An index made with `createIndex` matches whole words instead; see the table above.
+
 - A keyword matches wherever its exact text appears in a document, including inside a longer word: `"cat"` matches `"concatenate"`.
 - Matching is case-sensitive. To ignore case, lowercase your documents and your keywords before calling `BM25`.
 - Keywords are plain text, never regular expressions. `"c++"`, `"(draft)"` and anything else a user types into a search box are safe to pass in as they are.
@@ -123,6 +182,27 @@ The scores line up with `documents` by position, which is how the example gets b
 
 Returns `number[]` without a sorter and `BMDocument[]`, which is `{ document: string; score: number }[]`, with one. Throws a `TypeError` when `documents` or `keywords` is not an array.
 
+### `createIndex(documents, options?)`
+
+Returns an index of the documents with two methods.
+
+| Option | Type | Meaning |
+|---|---|---|
+| `caseSensitive` | `boolean` | Optional. `false` by default: case is ignored. |
+| `tokenizer` | `(text: string) => string[]` | Optional. Splits a text into words. It receives lowercased text unless `caseSensitive` is set. Empty words are dropped. |
+
+| Method | Returns |
+|---|---|
+| `index.search(keywords, options?)` | `BMHit[]`, which is `{ index: number; document: string; score: number }[]`: the documents that contain a keyword, best match first. Equal scores keep the order of the documents. |
+| `index.scores(keywords, constants?)` | `number[]`: one score per document, in the order of the documents. |
+
+The options of `search` are `k1`, `b` and `limit`, the largest number of results to return. `scores` takes `k1` and `b`.
+
+An index is stricter than `BM25` about what it is given:
+
+- `k1` must be a finite number of 0 or more, `b` a number from 0 to 1, and `limit` a number of 0 or more. A value of another type throws a `TypeError`, and a number out of range a `RangeError`. Leave an option out to get its default.
+- `documents` and `keywords` must be arrays, and a tokenizer must return an array of strings. Anything else throws a `TypeError`.
+
 ### Helpers
 
 The parts of the calculation are exported too:
@@ -137,7 +217,7 @@ getIDF("dog", documents); // 0.470, higher when fewer documents contain the keyw
 
 ### Types
 
-`BMDocument`, `BMConstants` and `BMSorter` are exported for your own signatures.
+`BMDocument`, `BMConstants`, `BMSorter`, `BMIndex`, `BMIndexOptions`, `BMSearchOptions` and `BMHit` are exported for your own signatures.
 
 ## Upgrading from 1.x
 
@@ -145,9 +225,21 @@ Version 2 matches keywords as plain text. Version 1 treated them as regular expr
 
 ## Speed and limits
 
-`BM25` builds no index. Each call reads every document once per keyword, plus once to count its words, so the time grows with the amount of text times the number of keywords. As a rough guide, 20,000 documents (10 MB of text) with four keywords take about 85 ms on an Apple M3 laptop. Version 2 is about twice as fast as 1.4.1; run `npm run bench` in a clone of the repository to measure it yourself.
+`BM25` builds no index. Each call reads every document once per keyword, plus once to count its words, so the time grows with the amount of text times the number of keywords. It is about twice as fast as version 1.4.1.
 
-That is fast enough to rank a few thousand documents on every keystroke, or the candidates another search step has already found. For collections of hundreds of megabytes, or many searches per second over the same text, use a search engine that keeps an index.
+`createIndex` reads the documents once. After that a search looks its keywords up and never reads the text again.
+
+Measured on an Apple M3 laptop with 10,000 documents of about 200 words each and five keywords:
+
+| | Time |
+|---|---|
+| One `BM25` call | 60 ms |
+| `createIndex`, once | 210 ms |
+| `index.search`, best 10 results | 0.5 ms |
+
+So `BM25` is the better fit when the documents are different on every call, or when you search them only a few times. The index pays for itself from the fourth search of the same documents. A search takes longer when its keywords are in many documents, because every matching document is ranked. Run `npm run bench` in a clone of the repository to measure it yourself.
+
+Everything is kept in memory and nothing is saved to disk. For collections of hundreds of megabytes, use a search engine built for that.
 
 ## Compatibility
 

@@ -1,5 +1,23 @@
 # Changelog
 
+## 2.1.0 - 2026-11-27
+
+Nothing changes for existing code: `BM25` and the helpers behave exactly as in 2.0.0.
+
+### Added
+- **`createIndex(documents, options?)`**, for searching the same documents many times. It reads the documents once and builds an index of their words. After that, `index.search(keywords, { limit })` returns the matching documents, best first, each with its position, and `index.scores(keywords)` returns one score per document like `BM25`.
+- Speed, measured on an Apple M3 with 10,000 documents of 200 words and five keywords: building the index takes about 210 ms, and a search for the best 10 results about 0.5 ms. One `BM25` call on the same documents takes about 60 ms.
+- The index matches whole words, where `BM25` matches text anywhere: `cat` finds the word `cat` and not `concatenate`. It ignores case unless `caseSensitive: true` is passed, and it splits keywords into words the same way as documents, so the keyword `dog?` finds `dog`. A word is a run of letters, digits and underscores in any script, so `café` and `москва` are words.
+- The formula and the defaults of `k1` and `b` are those of `BM25`. With `caseSensitive: true`, on English text, `index.scores` returns exactly the numbers `BM25` returns for keywords that are single words and occur only as whole words.
+- An index rejects options that cannot give a meaningful result, where `BM25` uses them as given: `k1` must be a finite number of 0 or more, `b` a number from 0 to 1, and `limit` a number of 0 or more.
+- A `tokenizer` option for `createIndex`, to decide what a word is. Use it for languages written without spaces, or to remove common words.
+- The types `BMIndex`, `BMIndexOptions`, `BMSearchOptions` and `BMHit`.
+- `npm run bench` also reports the time to build an index and to search it.
+
+### Changed
+- The README is rewritten: a quick start with real output, a recipe for searching what a user typed, the API, and what to expect for speed. Notes for contributors moved to `CONTRIBUTING.md`.
+- The published package grows from about 30 kB to about 70 kB unpacked, and the build from 2 kB to 5 kB gzipped.
+
 ## 2.0.0 - 2026-11-26
 
 Scores are unchanged for ordinary input: string documents, plain-text keywords, numeric `k1` and `b` above zero, and at least one document containing a word. The regression tests run the new code and the published 1.4.1 build on random input of that kind and require identical output, bit for bit. The cases below are the only ones where results differ.
