@@ -10,6 +10,8 @@ import DefaultBM25, {
   BMHit,
   BMIndex,
   BMIndexOptions,
+  BMOptions,
+  BMSearcher,
   BMSearchOptions,
   BMSorter,
   createIndex,
@@ -81,32 +83,82 @@ assertType<Equal<Parameters<typeof getTermFrequency>, [term: string, corpus: str
 assertType<Equal<ReturnType<typeof getIDF>, number>>();
 assertType<Equal<Parameters<typeof getIDF>, [term: string, documents: readonly string[]]>>();
 
-// The index: search() gives hits, scores() gives numbers.
-const index = createIndex(documents);
-assertType<Equal<typeof index, BMIndex>>();
-const hits = index.search(keywords);
+// BM25(documents) gives a searcher: search() gives hits, scores() gives numbers.
+const bm25 = BM25(documents);
+assertType<Equal<typeof bm25, BMSearcher>>();
+const fromDefault = DefaultBM25(documents);
+assertType<Equal<typeof fromDefault, BMSearcher>>();
+const withoutIndex = BM25(documents, { index: false });
+assertType<Equal<typeof withoutIndex, BMSearcher>>();
+const withNoOptions = BM25(documents, undefined);
+assertType<Equal<typeof withNoOptions, BMSearcher>>();
+const withEmptyOptions = BM25(documents, {});
+assertType<Equal<typeof withEmptyOptions, BMSearcher>>();
+declare const someOptions: BMOptions;
+const withOptionsValue = BM25(documents, someOptions);
+assertType<Equal<typeof withOptionsValue, BMSearcher>>();
+declare const maybeOptions: BMOptions | undefined;
+const withMaybeOptions = BM25(documents, maybeOptions);
+assertType<Equal<typeof withMaybeOptions, BMSearcher>>();
+const hits = bm25.search(keywords);
 assertType<Equal<typeof hits, BMHit[]>>();
-const limitedHits = index.search(keywords, { k1: 1.5, b: 0.5, limit: 10 });
+const limitedHits = bm25.search(keywords, { k1: 1.5, b: 0.5, limit: 10 });
 assertType<Equal<typeof limitedHits, BMHit[]>>();
-const indexScores = index.scores(keywords, { k1: 1.5 });
-assertType<Equal<typeof indexScores, number[]>>();
-const configured = createIndex(readonlyDocuments, {
+const searcherScores = bm25.scores(keywords, { k1: 1.5 });
+assertType<Equal<typeof searcherScores, number[]>>();
+const chained = BM25(documents, { index: false }).scores(keywords);
+assertType<Equal<typeof chained, number[]>>();
+const configured = BM25(readonlyDocuments, {
+  index: false,
   caseSensitive: true,
   tokenizer: (text) => {
     assertType<Equal<typeof text, string>>();
     return text.split(" ");
   },
 });
-assertType<Equal<typeof configured, BMIndex>>();
+assertType<Equal<typeof configured, BMSearcher>>();
 assertType<Equal<ReturnType<typeof configured.search>, BMHit[]>>();
-const fromReadonlyKeywords = index.search(readonlyKeywords, readonlyConstants);
+const fromReadonlyKeywords = bm25.search(readonlyKeywords, readonlyConstants);
 assertType<Equal<typeof fromReadonlyKeywords, BMHit[]>>();
 // A hit is a scored document with its position, so it fits where a BMDocument is expected.
 const asDocuments: BMDocument[] = hits;
 assertType<Equal<typeof asDocuments, BMDocument[]>>();
 assertType<Equal<BMHit, { document: string; score: number; index: number }>>();
-assertType<Equal<BMIndexOptions, { caseSensitive?: boolean; tokenizer?: (text: string) => string[] }>>();
+assertType<
+  Equal<BMOptions, { index?: boolean; caseSensitive?: boolean; tokenizer?: (text: string) => string[] }>
+>();
 assertType<Equal<BMSearchOptions, { b?: number; k1?: number; limit?: number }>>();
+
+// An array in second place still selects the older call, whatever its type.
+const fromEmptyKeywords = BM25(documents, []);
+assertType<Equal<typeof fromEmptyKeywords, number[]>>();
+declare const mutableKeywords: string[];
+const fromMutableKeywords = BM25(documents, mutableKeywords);
+assertType<Equal<typeof fromMutableKeywords, number[]>>();
+// Keywords typed `any`, for example from JSON.parse, gave scores before the
+// form with options existed. They still do.
+declare const anyKeywords: any;
+const fromAnyKeywords = BM25(documents, anyKeywords);
+assertType<Equal<typeof fromAnyKeywords, number[]>>();
+const fromAnyKeywordsWithConstants = BM25(documents, anyKeywords, { k1: 1.5 });
+assertType<Equal<typeof fromAnyKeywordsWithConstants, number[]>>();
+const rankedFromAnyKeywords = BM25(documents, anyKeywords, undefined, descending);
+assertType<Equal<typeof rankedFromAnyKeywords, BMDocument[]>>();
+export const castFromAny = BM25(documents, JSON.parse('["cat"]')) as number[];
+
+// The names from 2.1.0 still compile and mean the same things.
+const index = createIndex(documents);
+assertType<Equal<typeof index, BMIndex>>();
+assertType<Equal<BMIndex, BMSearcher>>();
+// The options of createIndex are what they were in 2.1.0: no `index`.
+assertType<Equal<BMIndexOptions, { caseSensitive?: boolean; tokenizer?: (text: string) => string[] }>>();
+const oldOptions: BMIndexOptions = { caseSensitive: true };
+const fromOldOptions = BM25(documents, oldOptions);
+assertType<Equal<typeof fromOldOptions, BMSearcher>>();
+const indexWithOptions = createIndex(readonlyDocuments, { caseSensitive: true });
+assertType<Equal<ReturnType<typeof indexWithOptions.search>, BMHit[]>>();
+export const asOldName: BMIndex = bm25;
+export const asNewName: BMSearcher = index;
 
 // Mistakes that must not compile.
 // @ts-expect-error The index needs documents.
@@ -117,20 +169,34 @@ createIndex("a cat");
 createIndex(documents, { lowercase: true });
 // @ts-expect-error A tokenizer returns words, not one string.
 createIndex(documents, { tokenizer: (text: string) => text });
+// @ts-expect-error createIndex always builds an index; `index` is an option of BM25.
+createIndex(documents, { index: false });
+// @ts-expect-error Documents are a list, not one string.
+BM25("a cat");
+// @ts-expect-error Unknown options are rejected.
+BM25(documents, { lowercase: true });
+// @ts-expect-error `index` is a boolean.
+BM25(documents, { index: "no" });
+// @ts-expect-error A tokenizer returns words, not one string.
+BM25(documents, { tokenizer: (text: string) => text });
+// @ts-expect-error `k1` and `b` are given to search() and scores(), not here.
+BM25(documents, { index: false }, { k1: 1.5 });
 // @ts-expect-error Keywords are a list, not one string.
-index.search("cat");
+bm25.search("cat");
 // @ts-expect-error The limit is a number.
-index.search(keywords, { limit: "10" });
+bm25.search(keywords, { limit: "10" });
 // @ts-expect-error scores() has no limit; it always returns one score per document.
-index.scores(keywords, { limit: 10 });
+bm25.scores(keywords, { limit: 10 });
 // @ts-expect-error search() returns hits, not numbers.
-export const wrongHits: number[] = index.search(keywords);
+export const wrongHits: number[] = bm25.search(keywords);
 // @ts-expect-error scores() returns numbers, not hits.
-export const wrongIndexScores: BMHit[] = index.scores(keywords);
+export const wrongSearcherScores: BMHit[] = bm25.scores(keywords);
+// @ts-expect-error Without keywords the result is a searcher, not scores.
+export const wrongSearcher: number[] = BM25(documents);
+// @ts-expect-error With keywords the result is scores, not a searcher.
+BM25(documents, keywords).search(keywords);
 // @ts-expect-error Documents are required.
 BM25();
-// @ts-expect-error Keywords are required.
-BM25(documents);
 // @ts-expect-error Documents are a list, not one string.
 BM25("a cat", keywords);
 // @ts-expect-error Keywords are a list, not one string.

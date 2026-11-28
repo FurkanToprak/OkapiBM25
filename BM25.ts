@@ -98,31 +98,83 @@ export interface BMConstants {
 /** If returns positive, the sorting results in secondEl coming before firstEl, else, firstEl comes before secondEL  */
 export type BMSorter = (firstEl: BMDocument, secondEl: BMDocument) => number;
 
-/** Implementation of Okapi BM25 algorithm.
+/**
+ * Scores the documents against the keywords in one call. Keywords are matched
+ * literally and case-sensitively anywhere in a document.
  *
- * Keywords are matched literally and case-sensitively anywhere in a document.
+ * @deprecated Use `BM25(documents).scores(keywords)`, or
+ * `BM25(documents, { index: false }).scores(keywords)` for documents that are
+ * searched only once. That form matches whole words and ignores case, so
+ * scores can differ from this one. This form keeps working in every 2.x
+ * release.
  *
- *  @param documents: Collection of documents.
- *  @param keywords: query terms.
- *  @param constants: Contains free parameters k1 and b. b=0.75 and k1=1.2 by default.
- *  @param sorter: A function that allows you to sort queries by a given rule. If not provided, returns results corresponding to the original order.
- * If this option is provided, the return type will not be an array of scores but an array of documents with their scores.
- *
- * @example
- * const scores = BM25(["a cat", "a dog"], ["cat"]); // number[]
- * const ranked = BM25(["a cat", "a dog"], ["cat"], undefined, (x, y) => y.score - x.score); // BMDocument[]
+ * @param documents Collection of documents.
+ * @param keywords Query terms.
+ * @param constants Free parameters `k1` and `b`. `b` is 0.75 and `k1` is 1.2 by default.
  */
 export function BM25(
   documents: readonly string[],
   keywords: readonly string[],
   constants?: BMConstants
 ): number[];
+/**
+ * Scores the documents against the keywords in one call and returns them
+ * sorted, each with its score.
+ *
+ * @deprecated Use `BM25(documents).search(keywords)`, which returns the
+ * matching documents sorted by score. That form matches whole words and
+ * ignores case, so scores can differ from this one. This form keeps working in
+ * every 2.x release.
+ *
+ * @param sorter Sorts the results, like the function given to `Array.prototype.sort()`.
+ */
 export function BM25(
   documents: readonly string[],
   keywords: readonly string[],
   constants: BMConstants | undefined,
   sorter: BMSorter
 ): BMDocument[];
+// The form to use. Its overload comes after the two above so that a second
+// argument typed `any` still selects the older call and gives `number[]`, as
+// it did before this form existed.
+/**
+ * Okapi BM25 over a set of documents. Give it the documents and get back an
+ * object that searches them: `search` returns the matching documents, best
+ * first, and `scores` returns one score per document.
+ *
+ * By default the documents are read once, here, and an index of their words
+ * is built, so that every search afterwards is a lookup. That is worth it when
+ * the same documents are searched more than once. Pass `{ index: false }` for
+ * documents that are searched once: nothing is built, and each search reads
+ * the documents instead. The results are the same either way, to the last
+ * digit.
+ *
+ * Whole words are matched: `cat` finds the word `cat` and not `concatenate`.
+ * Case is ignored unless `caseSensitive` is set. Keywords are split into words
+ * the same way as the documents, so the keyword `dog?` finds the word `dog`.
+ *
+ * The documents are a snapshot. Changing the array afterwards changes nothing.
+ *
+ * @throws TypeError when `documents` is not an array, when `index` is not a
+ * boolean, when `tokenizer` is not a function, or when it returns something
+ * other than an array of strings. A tokenizer that fails is met where the
+ * documents are read: here with an index, at the first search without one.
+ * `search` and `scores` throw a TypeError when `keywords` is not an array or
+ * an option is not a number, and a RangeError when an option is out of range.
+ *
+ * @example
+ * const bm25 = BM25(["A quick dog", "A lazy cat", "Stock markets"]);
+ * bm25.search(["Dog?"]); // [{ index: 0, document: "A quick dog", score: 0.93... }]
+ * bm25.scores(["dog"]); // [0.93..., 0, 0]
+ */
+export function BM25(
+  documents: readonly string[],
+  options?: BMOptions
+): BMSearcher;
+/**
+ * @deprecated Use `BM25(documents).search(keywords)` or
+ * `BM25(documents).scores(keywords)`.
+ */
 export function BM25(
   documents: readonly string[],
   keywords: readonly string[],
@@ -131,10 +183,27 @@ export function BM25(
 ): number[] | BMDocument[];
 export function BM25(
   documents: readonly string[],
-  keywords: readonly string[],
+  keywordsOrOptions?: readonly string[] | BMOptions,
   constants?: BMConstants,
   sorter?: BMSorter
-): number[] | BMDocument[] {
+): BMSearcher | number[] | BMDocument[] {
+  // Nothing in second place, or an ordinary object of options, asks for a
+  // searcher. Everything else is the older call, which scores in one go and
+  // throws below unless it was given an array of keywords. The tag is read
+  // this way so that a Set, a Map or a typed array is not taken for options,
+  // and so that an object made in another window or realm is.
+  if (
+    keywordsOrOptions === undefined ||
+    Object.prototype.toString.call(keywordsOrOptions) === "[object Object]"
+  ) {
+    return createSearcher(
+      documents,
+      keywordsOrOptions as BMOptions | undefined,
+      "BM25",
+      false
+    );
+  }
+  const keywords = keywordsOrOptions as readonly string[];
   if (!Array.isArray(documents)) {
     throw new TypeError("BM25: `documents` must be an array of strings.");
   }
@@ -216,8 +285,16 @@ export function BM25(
   return scores;
 }
 
-/** Options for {@link createIndex}. */
-export interface BMIndexOptions {
+/** Options for {@link BM25}. */
+export interface BMOptions {
+  /**
+   * Whether to build an index of the words of the documents. `true` by
+   * default. With `false` nothing is built and every search reads the
+   * documents: slower per search, but with no work up front and no index
+   * kept in memory. The results are identical. Use `false` for documents
+   * that are searched only once.
+   */
+  index?: boolean;
   /**
    * Whether `Dog` and `dog` are different words. `false` by default: documents
    * and keywords are lowercased before they are split into words.
@@ -229,39 +306,52 @@ export interface BMIndexOptions {
    * dropped. By default a word is a run of letters, digits and underscores in
    * any script. Pass a tokenizer for languages that are written without
    * spaces, or to remove common words or endings.
+   *
+   * It has to return the same words every time it is given the same text.
+   * With an index it reads each document once; without one, once per search.
    */
   tokenizer?: (text: string) => string[];
 }
 
 /**
- * Options for {@link BMIndex.search}. Unlike `BM25`, an index rejects values
- * that cannot give a meaningful score: `k1` must be a finite number of 0 or
- * more and `b` a number from 0 to 1.
+ * Options for {@link BMSearcher.search}. Values that cannot give a meaningful
+ * score are rejected: `k1` must be a finite number of 0 or more and `b` a
+ * number from 0 to 1.
  */
 export interface BMSearchOptions extends BMConstants {
   /** Return at most this many results. All matching documents by default. */
   limit?: number;
 }
 
-/** A document found by {@link BMIndex.search}. */
+/** A document found by {@link BMSearcher.search}. */
 export interface BMHit extends BMDocument {
-  /** Position of the document in the array given to {@link createIndex}. */
+  /** Position of the document in the array given to {@link BM25}. */
   index: number;
 }
 
-/** A searchable index of a fixed set of documents, made by {@link createIndex}. */
-export interface BMIndex {
+/** Searches a fixed set of documents. Made by {@link BM25}. */
+export interface BMSearcher {
   /**
    * The documents that contain at least one of the keywords, best match first.
-   * Documents with equal scores keep the order they were indexed in.
+   * Documents with equal scores keep the order they were given in.
    */
   search(keywords: readonly string[], options?: BMSearchOptions): BMHit[];
   /**
-   * One score per document, in the order the documents were indexed in. A
+   * One score per document, in the order the documents were given in. A
    * document that contains none of the keywords scores `0`.
    */
   scores(keywords: readonly string[], constants?: BMConstants): number[];
 }
+
+/**
+ * The options of {@link createIndex}: those of {@link BM25} without `index`.
+ *
+ * @deprecated Use {@link BMOptions} with {@link BM25}.
+ */
+export type BMIndexOptions = Omit<BMOptions, "index">;
+
+/** @deprecated Renamed to {@link BMSearcher}. */
+export type BMIndex = BMSearcher;
 
 /** The documents containing a word, and how often each one contains it. */
 interface Posting {
@@ -278,8 +368,17 @@ const compilePattern = (source: string, flags: string): RegExp | undefined => {
   }
 };
 
+/** What a search needs to know about the documents. */
+interface Reading {
+  /** For each word that was looked for, where it was found. */
+  postings: Map<string, Posting>;
+  /** The number of words in each document. */
+  documentLengths: Float64Array;
+  averageDocumentLength: number;
+}
+
 /**
- * The default definition of a word for an index: a run of letters, marks that
+ * The default definition of a word for a search: a run of letters, marks that
  * combine with letters, digits and underscores, in any script. For ASCII text
  * these are the words that `getWordCount` counts. The pattern is compiled at
  * run time because its syntax is newer than the ES2015 this file is built
@@ -298,51 +397,39 @@ const readNumber = (
     return fallback;
   }
   if (typeof value !== "number") {
-    throw new TypeError("BM25 index: " + rule);
+    throw new TypeError("BM25: " + rule);
   }
   // Written so that NaN fails it too.
   if (!(value >= 0 && value <= max)) {
-    throw new RangeError("BM25 index: " + rule);
+    throw new RangeError("BM25: " + rule);
   }
   return value;
 };
 
 /**
- * Reads the documents once and builds an index of their words, so that each
- * later search looks words up instead of reading the text again. Worth it when
- * the same documents are searched many times.
- *
- * Matching differs from {@link BM25}: the index matches whole words. `cat`
- * finds the word `cat` and not `concatenate`, and case is ignored unless
- * `caseSensitive` is set. Keywords are split into words the same way as the
- * documents, so the keyword `dog?` finds the word `dog`. The scoring formula
- * and the defaults of `k1` and `b` are those of {@link BM25}.
- *
- * The index is a snapshot. Changing the array afterwards does not change it.
- *
- * @throws TypeError when `documents` is not an array, when `tokenizer` is not
- * a function, or when it returns something other than an array of strings.
- * `search` and `scores` throw a TypeError when `keywords` is not an array or
- * an option is not a number, and a RangeError when an option is out of range.
- *
- * @example
- * const index = createIndex(["A quick dog", "A lazy cat", "Stock markets"]);
- * index.search(["Dog?"]); // [{ index: 0, document: "A quick dog", score: 0.93... }]
- * index.scores(["dog"]); // [0.93..., 0, 0]
+ * What `BM25(documents, options)` returns. `caller` is the name of the
+ * exported function, for error messages. With `alwaysIndex` the `index`
+ * option is not looked at, as in 2.1.0, when it did not exist.
  */
-export function createIndex(
+const createSearcher = (
   documents: readonly string[],
-  options?: BMIndexOptions
-): BMIndex {
+  options: BMOptions | undefined,
+  caller: string,
+  alwaysIndex: boolean
+): BMSearcher => {
   if (!Array.isArray(documents)) {
     throw new TypeError(
-      "createIndex: `documents` must be an array of strings."
+      caller + ": `documents` must be an array of strings."
     );
+  }
+  const useIndex = alwaysIndex || !options ? undefined : options.index;
+  if (useIndex !== undefined && typeof useIndex !== "boolean") {
+    throw new TypeError(caller + ": `index` must be `true` or `false`.");
   }
   const caseSensitive = options ? options.caseSensitive === true : false;
   const tokenizer = options ? options.tokenizer : undefined;
   if (tokenizer !== undefined && typeof tokenizer !== "function") {
-    throw new TypeError("createIndex: `tokenizer` must be a function.");
+    throw new TypeError(caller + ": `tokenizer` must be a function.");
   }
 
   /** The words of a text. A custom tokenizer may return empty words; callers skip those. */
@@ -354,13 +441,13 @@ export function createIndex(
     const words: unknown = tokenizer(prepared);
     if (!Array.isArray(words)) {
       throw new TypeError(
-        "createIndex: `tokenizer` must return an array of strings."
+        caller + ": `tokenizer` must return an array of strings."
       );
     }
     for (let w = 0; w < words.length; w++) {
       if (typeof words[w] !== "string") {
         throw new TypeError(
-          "createIndex: `tokenizer` must return an array of strings."
+          caller + ": `tokenizer` must return an array of strings."
         );
       }
     }
@@ -369,43 +456,62 @@ export function createIndex(
 
   const documentCount = documents.length;
   const originals = documents.slice();
-  // A Map, not an object, so that words such as `constructor` are ordinary keys.
-  const postings = new Map<string, Posting>();
-  const documentLengths = new Float64Array(documentCount);
-  let totalLength = 0;
-  for (let i = 0; i < documentCount; i++) {
-    const words = toWords(toText(documents[i]));
-    let length = 0;
-    for (let w = 0; w < words.length; w++) {
-      const word = words[w];
-      if (word.length === 0) {
-        continue;
-      }
-      length++;
-      const posting = postings.get(word);
-      if (posting === undefined) {
-        postings.set(word, { documents: [i], frequencies: [1] });
-        continue;
-      }
-      // Documents are added in order, so a repeat of the word within this
-      // document is always at the end of the list.
-      const last = posting.documents.length - 1;
-      if (posting.documents[last] === i) {
-        posting.frequencies[last]++;
-      } else {
-        posting.documents.push(i);
-        posting.frequencies.push(1);
-      }
-    }
-    documentLengths[i] = length;
-    totalLength += length;
-  }
-  // Only read once a word has been found, and then at least one document has
-  // a word, so it is a positive number wherever it is used.
-  const averageDocumentLength = totalLength / documentCount;
 
-  // Working memory shared by all searches, so that a search costs time in
-  // proportion to the documents it finds and not to the size of the index.
+  /**
+   * Reads every document once: counts its words and notes in `postings` which
+   * documents contain which words. With `everyWord`, each word that is met
+   * gets an entry, which makes `postings` an index. Without it, only the words
+   * that already have an entry are noted, which is a search without an index.
+   * Both ways run this one loop, so they cannot count differently.
+   */
+  const read = (postings: Map<string, Posting>, everyWord: boolean): Reading => {
+    const documentLengths = new Float64Array(documentCount);
+    let totalLength = 0;
+    for (let i = 0; i < documentCount; i++) {
+      const words = toWords(toText(originals[i]));
+      let length = 0;
+      for (let w = 0; w < words.length; w++) {
+        const word = words[w];
+        if (word.length === 0) {
+          continue;
+        }
+        length++;
+        const posting = postings.get(word);
+        if (posting === undefined) {
+          if (everyWord) {
+            postings.set(word, { documents: [i], frequencies: [1] });
+          }
+          continue;
+        }
+        // Documents are read in order, so a repeat of the word within this
+        // document is always at the end of the list. A list that is still
+        // empty has no end, and takes the other branch.
+        const last = posting.documents.length - 1;
+        if (posting.documents[last] === i) {
+          posting.frequencies[last]++;
+        } else {
+          posting.documents.push(i);
+          posting.frequencies.push(1);
+        }
+      }
+      documentLengths[i] = length;
+      totalLength += length;
+    }
+    // The average is only used once a word has been found, and then at least
+    // one document has a word, so it is a positive number wherever it is used.
+    return {
+      postings,
+      documentLengths,
+      averageDocumentLength: totalLength / documentCount,
+    };
+  };
+
+  // A Map, not an object, so that words such as `constructor` are ordinary keys.
+  const index =
+    useIndex === false ? undefined : read(new Map<string, Posting>(), true);
+
+  // Working memory shared by all searches, so that a search of an index costs
+  // time in proportion to the documents it finds and not to their number.
   // Both are all zeros between searches: `clear` undoes what `collect` wrote.
   const totals = new Float64Array(documentCount);
   const isMatched = new Uint8Array(documentCount);
@@ -420,9 +526,7 @@ export function createIndex(
     constants: BMConstants | undefined
   ): number[] => {
     if (!Array.isArray(keywords)) {
-      throw new TypeError(
-        "BM25 index: `keywords` must be an array of strings."
-      );
+      throw new TypeError("BM25: `keywords` must be an array of strings.");
     }
     const b = readNumber(
       constants ? constants.b : undefined,
@@ -436,12 +540,13 @@ export function createIndex(
       Number.MAX_VALUE,
       "`k1` must be a finite number, 0 or more."
     );
-    // Every keyword is split into words before any score is added. The
-    // tokenizer is the caller's code, and none of it runs, and nothing can
-    // throw, while `totals` holds a search in progress.
+    // Every keyword is split into words, and without an index every document
+    // is read, before any score is added. The tokenizer is the caller's code,
+    // and none of it runs, and nothing can throw, while `totals` holds a
+    // search in progress.
     const words: string[] = [];
     for (let k = 0; k < keywords.length; k++) {
-      // As in BM25, a number is searched as text and other values match nothing.
+      // A number is searched as text and other values match nothing.
       const rawKeyword: unknown = keywords[k];
       const keywordWords = toWords(
         typeof rawKeyword === "number" ? String(rawKeyword) : toText(rawKeyword)
@@ -452,14 +557,29 @@ export function createIndex(
     }
 
     const matched: number[] = [];
+    let reading = index;
+    if (reading === undefined) {
+      if (words.length === 0) {
+        return matched;
+      }
+      // No index: read the documents now, noting only the words of this search.
+      const wanted = new Map<string, Posting>();
+      for (let w = 0; w < words.length; w++) {
+        wanted.set(words[w], { documents: [], frequencies: [] });
+      }
+      reading = read(wanted, false);
+    }
+    const { postings, documentLengths, averageDocumentLength } = reading;
+
     for (let w = 0; w < words.length; w++) {
       const posting = postings.get(words[w]);
       if (posting === undefined) {
         continue;
       }
       const matches = posting.documents.length;
-      // The arithmetic below is the same, operation for operation, as in
-      // BM25, so both give identical scores when they match the same words.
+      // The arithmetic below is the same, operation for operation, as in the
+      // older call of BM25 with keywords, so both give identical scores when
+      // they match the same words.
       const inverseDocumentFrequency = Math.log(
         (documentCount - matches + 0.5) / (matches + 0.5) + 1
       );
@@ -524,6 +644,20 @@ export function createIndex(
       return scores;
     },
   };
+};
+
+/**
+ * The name that `BM25(documents, options)` had in 2.1.0. It always builds an
+ * index.
+ *
+ * @deprecated Use `BM25(documents, options)`. It takes the same arguments and
+ * returns the same object. This name keeps working in every 2.x release.
+ */
+export function createIndex(
+  documents: readonly string[],
+  options?: BMIndexOptions
+): BMIndex {
+  return createSearcher(documents, options, "createIndex", true);
 }
 
 export default BM25;

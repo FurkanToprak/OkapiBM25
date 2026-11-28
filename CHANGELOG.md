@@ -1,5 +1,28 @@
 # Changelog
 
+## 2.2.0 - 2026-11-27
+
+There is now one way to call the package. Nothing breaks: every call that worked in 2.1.0 still works and returns the same results.
+
+### Added
+- **`BM25(documents, options?)` returns an object that searches the documents.** `search(keywords, { limit })` returns the matching documents, best first, each with its position. `scores(keywords)` returns one score per document. This is the object that `createIndex` returned in 2.1.0, now under the name of the package.
+- **`{ index: false }`**, for documents that are searched only once. By default `BM25(documents)` builds an index of the words, as `createIndex` did. With `index: false` nothing is built and every search reads the documents instead. The results are identical, to the last digit: both ways run the same code to read a document, and a test compares them on random text in several scripts.
+- Speed, measured on an Apple M3 with 10,000 documents of 200 words and five keywords: `BM25(documents)` takes about 200 ms and a search of the index about 0.5 ms. A search with `index: false` takes about 110 ms. The index is faster from the second search of the same documents.
+- The types `BMSearcher` and `BMOptions`.
+- `npm run bench` also reports a search without an index.
+
+### Deprecated
+Deprecated calls keep working in every 2.x release, with unchanged results. Editors show them struck through.
+- **`BM25(documents, keywords, constants?, sorter?)`**, the call with documents and keywords together. Use `BM25(documents).scores(keywords)` or `BM25(documents).search(keywords)`, with `{ index: false }` for documents that are searched once. The two match differently: the older call finds the text of a keyword anywhere and tells case apart, where the new one finds whole words and ignores case. Scores can therefore change when you move. The README has a table of the differences, under "The older call". If you need text matched anywhere, phrases, or keywords such as `c++`, stay with the older call.
+- **`createIndex(documents, options)`**. Use `BM25(documents, options)`, which takes the same arguments and returns the same object. `createIndex` behaves as in 2.1.0: it always builds an index and does not look at `index`.
+- The types `BMIndex` and `BMIndexOptions`. `BMIndex` is now another name for `BMSearcher`, and `BMIndexOptions` is `BMOptions` without `index`.
+
+### Changed
+- `BM25(documents)` without keywords, and `BM25(documents, object)` with an ordinary object where the keywords used to be, return the object described above. In 2.1.0 both threw a `TypeError` because the keywords were not an array. Everything else that is not an array, such as `null`, a string or a `Set`, still throws that `TypeError`.
+- In the type declarations, keywords typed `any` still select the older call and give `number[]`.
+- Error messages from `search` and `scores` start with `BM25:`. In 2.1.0 they started with `BM25 index:`.
+- The README is written around the one call.
+
 ## 2.1.0 - 2026-11-27
 
 Nothing changes for existing code: `BM25` and the helpers behave exactly as in 2.0.0.

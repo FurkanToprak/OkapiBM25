@@ -13,8 +13,10 @@ export interface BMConstants {
 export type BMSorter = (firstEl: BMDocument, secondEl: BMDocument) => number;
 export declare function BM25(documents: readonly string[], keywords: readonly string[], constants?: BMConstants): number[];
 export declare function BM25(documents: readonly string[], keywords: readonly string[], constants: BMConstants | undefined, sorter: BMSorter): BMDocument[];
+export declare function BM25(documents: readonly string[], options?: BMOptions): BMSearcher;
 export declare function BM25(documents: readonly string[], keywords: readonly string[], constants?: BMConstants, sorter?: BMSorter): number[] | BMDocument[];
-export interface BMIndexOptions {
+export interface BMOptions {
+    index?: boolean;
     caseSensitive?: boolean;
     tokenizer?: (text: string) => string[];
 }
@@ -24,10 +26,12 @@ export interface BMSearchOptions extends BMConstants {
 export interface BMHit extends BMDocument {
     index: number;
 }
-export interface BMIndex {
+export interface BMSearcher {
     search(keywords: readonly string[], options?: BMSearchOptions): BMHit[];
     scores(keywords: readonly string[], constants?: BMConstants): number[];
 }
+export type BMIndexOptions = Omit<BMOptions, "index">;
+export type BMIndex = BMSearcher;
 export declare function createIndex(documents: readonly string[], options?: BMIndexOptions): BMIndex;
 export default BM25;
 

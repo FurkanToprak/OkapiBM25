@@ -7,6 +7,8 @@ import BM25, {
   BMHit,
   BMIndex,
   BMIndexOptions,
+  BMOptions,
+  BMSearcher,
   BMSearchOptions,
   BMSorter,
   createIndex,
@@ -26,9 +28,25 @@ export const castScores = BM25(["a cat"], ["cat"]) as number[];
 export const castRanked = BM25(["a cat"], ["cat"], undefined, sorter) as BMDocument[];
 export const numbers: number[] = [getIDF("a", ["a"]), getTermFrequency("a", "a"), getWordCount("a")];
 
-const indexOptions: BMIndexOptions = { caseSensitive: false, tokenizer: (text) => text.split(" ") };
+// BM25 with documents only returns a searcher. The overload has to be chosen
+// correctly by every TypeScript version: options give a searcher, an array
+// of keywords gives scores.
+const options: BMOptions = { index: false, caseSensitive: false, tokenizer: (text) => text.split(" ") };
 const searchOptions: BMSearchOptions = { k1: 1.2, b: 0.75, limit: 5 };
+export const searcher: BMSearcher = BM25(documents);
+export const withoutIndex: BMSearcher = NamedBM25(documents, options);
+export const inline: BMSearcher = BM25(documents, { index: false });
+export const hits: BMHit[] = searcher.search(["cat"], searchOptions);
+export const searcherScores: number[] = withoutIndex.scores(["cat"], constants);
+export const hitsAsDocuments: BMDocument[] = BM25(documents).search(["cat"]);
+export const fromEmptyKeywords: number[] = BM25(documents, []);
+const mutableKeywords: string[] = ["cat"];
+export const fromMutableKeywords: number[] = BM25(documents, mutableKeywords);
+// Keywords typed `any` select the older call, as they did before 2.2.
+export const fromAnyKeywords: number[] = BM25(documents, JSON.parse('["cat"]'));
+
+// The names from 2.1.0 still compile.
+const indexOptions: BMIndexOptions = { caseSensitive: false, tokenizer: (text) => text.split(" ") };
 export const index: BMIndex = createIndex(documents, indexOptions);
-export const hits: BMHit[] = index.search(["cat"], searchOptions);
+export const indexHits: BMHit[] = index.search(["cat"], searchOptions);
 export const indexScores: number[] = index.scores(["cat"], constants);
-export const hitsAsDocuments: BMDocument[] = createIndex(documents).search(["cat"]);

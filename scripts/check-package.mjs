@@ -73,9 +73,11 @@ assert.equal(pkg.BM25, pkg.default, "require('okapibm25').BM25 is the same funct
 for (const helper of ["createIndex", "getIDF", "getTermFrequency", "getWordCount"]) {
   assert.equal(typeof pkg[helper], "function", helper + " is exported");
 }
-const hits = pkg.createIndex(["a cat", "a dog"]).search(["DOG"]);
-assert.deepEqual(hits.map((hit) => hit.index), [1]);
 const { BM25 } = pkg;
+const hits = BM25(["a cat", "a dog"]).search(["DOG"]);
+assert.deepEqual(hits.map((hit) => hit.index), [1]);
+assert.deepEqual(pkg.default(["a cat", "a dog"], { index: false }).search(["DOG"]), hits);
+assert.deepEqual(pkg.createIndex(["a cat", "a dog"]).search(["DOG"]), hits, "the name from 2.1.0 still works");
 const scores = BM25(["a cat", "a dog"], ["cat"]);
 assert.ok(scores[0] > 0 && scores[1] === 0);
 const ranked = pkg.default(["a cat", "a dog"], ["dog"], undefined, (x, y) => y.score - x.score);
@@ -88,6 +90,8 @@ import pkg, { BM25, createIndex, getIDF, getTermFrequency, getWordCount } from "
 
 assert.equal(typeof BM25, "function", "import { BM25 } from 'okapibm25' is the function");
 assert.equal(typeof createIndex, "function", "import { createIndex } from 'okapibm25' is the function");
+assert.deepEqual(BM25(["a cat", "a dog"]).scores(["cat"]), BM25(["a cat", "a dog"], ["cat"]));
+assert.deepEqual(BM25(["a cat", "a dog"], { index: false }).scores(["cat"]), BM25(["a cat", "a dog"], ["cat"]));
 assert.deepEqual(createIndex(["a cat", "a dog"]).scores(["cat"]), BM25(["a cat", "a dog"], ["cat"]));
 assert.equal(pkg.BM25, BM25);
 assert.equal(pkg.default, BM25, "the 1.4.1 form, (default import).default, still works");
@@ -119,9 +123,11 @@ export const numbers: number[] = [getIDF("a", ["a"]), getTermFrequency("a", "a")
 `;
 
 const typeScriptEsModuleConsumer = `
-import { BM25, createIndex, type BMDocument, type BMHit } from "okapibm25";
+import { BM25, createIndex, type BMDocument, type BMHit, type BMSearcher } from "okapibm25";
 
-export const hits: BMHit[] = createIndex(["a cat", "a dog"]).search(["cat"], { limit: 1 });
+export const searcher: BMSearcher = BM25(["a cat", "a dog"], { index: false });
+export const hits: BMHit[] = BM25(["a cat", "a dog"]).search(["cat"], { limit: 1 });
+export const indexHits: BMHit[] = createIndex(["a cat", "a dog"]).search(["cat"], { limit: 1 });
 export const scores: number[] = BM25(["a cat", "a dog"], ["cat"]);
 export const ranked: BMDocument[] = BM25(["a cat"], ["cat"], undefined, (first, second) => second.score - first.score);
 `;
