@@ -1,7 +1,7 @@
 // The application that each bundler bundles. It prints one line of JSON.
 // run.mjs also runs this file unbundled in Node and requires every bundle to
 // print the same `result`.
-import defaultImport, { BM25, getIDF, getTermFrequency, getWordCount } from "okapibm25";
+import defaultImport, { BM25, createIndex, getIDF, getTermFrequency, getWordCount } from "okapibm25";
 import * as namespace from "okapibm25";
 
 const documents = [
@@ -12,8 +12,11 @@ const documents = [
 ];
 const keywords = ["quick", "dog", "c++"];
 const sorter = (first, second) => second.score - first.score;
+const index = createIndex(documents);
 
 const result = {
+  indexSearch: index.search(["Quick", "dog?"], { limit: 2 }),
+  indexScores: index.scores(keywords, { k1: 1.5, b: 0.5 }),
   scores: BM25(documents, keywords),
   tuned: BM25(documents, keywords, { k1: 1.5, b: 0.5 }),
   ranked: BM25(documents, keywords, undefined, sorter),

@@ -14,10 +14,26 @@ export type BMSorter = (firstEl: BMDocument, secondEl: BMDocument) => number;
 export declare function BM25(documents: readonly string[], keywords: readonly string[], constants?: BMConstants): number[];
 export declare function BM25(documents: readonly string[], keywords: readonly string[], constants: BMConstants | undefined, sorter: BMSorter): BMDocument[];
 export declare function BM25(documents: readonly string[], keywords: readonly string[], constants?: BMConstants, sorter?: BMSorter): number[] | BMDocument[];
+export interface BMIndexOptions {
+    caseSensitive?: boolean;
+    tokenizer?: (text: string) => string[];
+}
+export interface BMSearchOptions extends BMConstants {
+    limit?: number;
+}
+export interface BMHit extends BMDocument {
+    index: number;
+}
+export interface BMIndex {
+    search(keywords: readonly string[], options?: BMSearchOptions): BMHit[];
+    scores(keywords: readonly string[], constants?: BMConstants): number[];
+}
+export declare function createIndex(documents: readonly string[], options?: BMIndexOptions): BMIndex;
 export default BM25;
 
 // Names exported at run time by dist/BM25.js
 //   BM25
+//   createIndex
 //   default
 //   getIDF
 //   getTermFrequency

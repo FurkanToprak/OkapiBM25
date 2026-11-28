@@ -216,4 +216,314 @@ export function BM25(
   return scores;
 }
 
+/** Options for {@link createIndex}. */
+export interface BMIndexOptions {
+  /**
+   * Whether `Dog` and `dog` are different words. `false` by default: documents
+   * and keywords are lowercased before they are split into words.
+   */
+  caseSensitive?: boolean;
+  /**
+   * Splits a text into words. It is called for every document and for every
+   * keyword, after lowercasing unless `caseSensitive` is set. Empty words are
+   * dropped. By default a word is a run of letters, digits and underscores in
+   * any script. Pass a tokenizer for languages that are written without
+   * spaces, or to remove common words or endings.
+   */
+  tokenizer?: (text: string) => string[];
+}
+
+/**
+ * Options for {@link BMIndex.search}. Unlike `BM25`, an index rejects values
+ * that cannot give a meaningful score: `k1` must be a finite number of 0 or
+ * more and `b` a number from 0 to 1.
+ */
+export interface BMSearchOptions extends BMConstants {
+  /** Return at most this many results. All matching documents by default. */
+  limit?: number;
+}
+
+/** A document found by {@link BMIndex.search}. */
+export interface BMHit extends BMDocument {
+  /** Position of the document in the array given to {@link createIndex}. */
+  index: number;
+}
+
+/** A searchable index of a fixed set of documents, made by {@link createIndex}. */
+export interface BMIndex {
+  /**
+   * The documents that contain at least one of the keywords, best match first.
+   * Documents with equal scores keep the order they were indexed in.
+   */
+  search(keywords: readonly string[], options?: BMSearchOptions): BMHit[];
+  /**
+   * One score per document, in the order the documents were indexed in. A
+   * document that contains none of the keywords scores `0`.
+   */
+  scores(keywords: readonly string[], constants?: BMConstants): number[];
+}
+
+/** The documents containing a word, and how often each one contains it. */
+interface Posting {
+  documents: number[];
+  frequencies: number[];
+}
+
+/** `undefined` when the JavaScript engine does not support the pattern. */
+const compilePattern = (source: string, flags: string): RegExp | undefined => {
+  try {
+    return new RegExp(source, flags);
+  } catch (error) {
+    return undefined;
+  }
+};
+
+/**
+ * The default definition of a word for an index: a run of letters, marks that
+ * combine with letters, digits and underscores, in any script. For ASCII text
+ * these are the words that `getWordCount` counts. The pattern is compiled at
+ * run time because its syntax is newer than the ES2015 this file is built
+ * for; engines from before 2018 fall back to ASCII words.
+ */
+const WORDS = compilePattern("[\\p{L}\\p{M}\\p{N}_]+", "gu") || /\w+/g;
+
+/** Reads an option that has to be a number from 0 to `max`. `undefined` gives the default. */
+const readNumber = (
+  value: unknown,
+  fallback: number,
+  max: number,
+  rule: string
+): number => {
+  if (value === undefined) {
+    return fallback;
+  }
+  if (typeof value !== "number") {
+    throw new TypeError("BM25 index: " + rule);
+  }
+  // Written so that NaN fails it too.
+  if (!(value >= 0 && value <= max)) {
+    throw new RangeError("BM25 index: " + rule);
+  }
+  return value;
+};
+
+/**
+ * Reads the documents once and builds an index of their words, so that each
+ * later search looks words up instead of reading the text again. Worth it when
+ * the same documents are searched many times.
+ *
+ * Matching differs from {@link BM25}: the index matches whole words. `cat`
+ * finds the word `cat` and not `concatenate`, and case is ignored unless
+ * `caseSensitive` is set. Keywords are split into words the same way as the
+ * documents, so the keyword `dog?` finds the word `dog`. The scoring formula
+ * and the defaults of `k1` and `b` are those of {@link BM25}.
+ *
+ * The index is a snapshot. Changing the array afterwards does not change it.
+ *
+ * @throws TypeError when `documents` is not an array, when `tokenizer` is not
+ * a function, or when it returns something other than an array of strings.
+ * `search` and `scores` throw a TypeError when `keywords` is not an array or
+ * an option is not a number, and a RangeError when an option is out of range.
+ *
+ * @example
+ * const index = createIndex(["A quick dog", "A lazy cat", "Stock markets"]);
+ * index.search(["Dog?"]); // [{ index: 0, document: "A quick dog", score: 0.93... }]
+ * index.scores(["dog"]); // [0.93..., 0, 0]
+ */
+export function createIndex(
+  documents: readonly string[],
+  options?: BMIndexOptions
+): BMIndex {
+  if (!Array.isArray(documents)) {
+    throw new TypeError(
+      "createIndex: `documents` must be an array of strings."
+    );
+  }
+  const caseSensitive = options ? options.caseSensitive === true : false;
+  const tokenizer = options ? options.tokenizer : undefined;
+  if (tokenizer !== undefined && typeof tokenizer !== "function") {
+    throw new TypeError("createIndex: `tokenizer` must be a function.");
+  }
+
+  /** The words of a text. A custom tokenizer may return empty words; callers skip those. */
+  const toWords = (text: string): string[] => {
+    const prepared = caseSensitive ? text : text.toLowerCase();
+    if (tokenizer === undefined) {
+      return prepared.match(WORDS) || [];
+    }
+    const words: unknown = tokenizer(prepared);
+    if (!Array.isArray(words)) {
+      throw new TypeError(
+        "createIndex: `tokenizer` must return an array of strings."
+      );
+    }
+    for (let w = 0; w < words.length; w++) {
+      if (typeof words[w] !== "string") {
+        throw new TypeError(
+          "createIndex: `tokenizer` must return an array of strings."
+        );
+      }
+    }
+    return words;
+  };
+
+  const documentCount = documents.length;
+  const originals = documents.slice();
+  // A Map, not an object, so that words such as `constructor` are ordinary keys.
+  const postings = new Map<string, Posting>();
+  const documentLengths = new Float64Array(documentCount);
+  let totalLength = 0;
+  for (let i = 0; i < documentCount; i++) {
+    const words = toWords(toText(documents[i]));
+    let length = 0;
+    for (let w = 0; w < words.length; w++) {
+      const word = words[w];
+      if (word.length === 0) {
+        continue;
+      }
+      length++;
+      const posting = postings.get(word);
+      if (posting === undefined) {
+        postings.set(word, { documents: [i], frequencies: [1] });
+        continue;
+      }
+      // Documents are added in order, so a repeat of the word within this
+      // document is always at the end of the list.
+      const last = posting.documents.length - 1;
+      if (posting.documents[last] === i) {
+        posting.frequencies[last]++;
+      } else {
+        posting.documents.push(i);
+        posting.frequencies.push(1);
+      }
+    }
+    documentLengths[i] = length;
+    totalLength += length;
+  }
+  // Only read once a word has been found, and then at least one document has
+  // a word, so it is a positive number wherever it is used.
+  const averageDocumentLength = totalLength / documentCount;
+
+  // Working memory shared by all searches, so that a search costs time in
+  // proportion to the documents it finds and not to the size of the index.
+  // Both are all zeros between searches: `clear` undoes what `collect` wrote.
+  const totals = new Float64Array(documentCount);
+  const isMatched = new Uint8Array(documentCount);
+
+  /**
+   * Adds the score of every document that contains a keyword into `totals`
+   * and returns the positions of those documents, in the order they were
+   * first found. The caller reads `totals` and then calls `clear`.
+   */
+  const collect = (
+    keywords: readonly string[],
+    constants: BMConstants | undefined
+  ): number[] => {
+    if (!Array.isArray(keywords)) {
+      throw new TypeError(
+        "BM25 index: `keywords` must be an array of strings."
+      );
+    }
+    const b = readNumber(
+      constants ? constants.b : undefined,
+      DEFAULT_B,
+      1,
+      "`b` must be a number from 0 to 1."
+    );
+    const k1 = readNumber(
+      constants ? constants.k1 : undefined,
+      DEFAULT_K1,
+      Number.MAX_VALUE,
+      "`k1` must be a finite number, 0 or more."
+    );
+    // Every keyword is split into words before any score is added. The
+    // tokenizer is the caller's code, and none of it runs, and nothing can
+    // throw, while `totals` holds a search in progress.
+    const words: string[] = [];
+    for (let k = 0; k < keywords.length; k++) {
+      // As in BM25, a number is searched as text and other values match nothing.
+      const rawKeyword: unknown = keywords[k];
+      const keywordWords = toWords(
+        typeof rawKeyword === "number" ? String(rawKeyword) : toText(rawKeyword)
+      );
+      for (let w = 0; w < keywordWords.length; w++) {
+        words.push(keywordWords[w]);
+      }
+    }
+
+    const matched: number[] = [];
+    for (let w = 0; w < words.length; w++) {
+      const posting = postings.get(words[w]);
+      if (posting === undefined) {
+        continue;
+      }
+      const matches = posting.documents.length;
+      // The arithmetic below is the same, operation for operation, as in
+      // BM25, so both give identical scores when they match the same words.
+      const inverseDocumentFrequency = Math.log(
+        (documentCount - matches + 0.5) / (matches + 0.5) + 1
+      );
+      for (let m = 0; m < matches; m++) {
+        const i = posting.documents[m];
+        const termFrequency = posting.frequencies[m];
+        const relativeLength =
+          (b * documentLengths[i]) / averageDocumentLength;
+        const lengthNorm = k1 * (1 - b + relativeLength);
+        totals[i] +=
+          (inverseDocumentFrequency * (termFrequency * (k1 + 1))) /
+          (termFrequency + lengthNorm);
+        if (isMatched[i] === 0) {
+          isMatched[i] = 1;
+          matched.push(i);
+        }
+      }
+    }
+    return matched;
+  };
+
+  const clear = (matched: number[]): void => {
+    for (let m = 0; m < matched.length; m++) {
+      totals[matched[m]] = 0;
+      isMatched[matched[m]] = 0;
+    }
+  };
+
+  return {
+    search(keywords, options) {
+      const limit = readNumber(
+        options ? options.limit : undefined,
+        Infinity,
+        Infinity,
+        "`limit` must be a number, 0 or more."
+      );
+      const matched = collect(keywords, options);
+      // The position breaks ties, so the order never depends on the engine's sort.
+      matched.sort(
+        (first, second) => totals[second] - totals[first] || first - second
+      );
+      const hits: BMHit[] = new Array(
+        Math.floor(Math.min(matched.length, limit))
+      );
+      for (let m = 0; m < hits.length; m++) {
+        const i = matched[m];
+        hits[m] = { index: i, document: originals[i], score: totals[i] };
+      }
+      clear(matched);
+      return hits;
+    },
+    scores(keywords, constants) {
+      const matched = collect(keywords, constants);
+      const scores: number[] = new Array(documentCount);
+      for (let i = 0; i < documentCount; i++) {
+        scores[i] = 0;
+      }
+      for (let m = 0; m < matched.length; m++) {
+        scores[matched[m]] = totals[matched[m]];
+      }
+      clear(matched);
+      return scores;
+    },
+  };
+}
+
 export default BM25;

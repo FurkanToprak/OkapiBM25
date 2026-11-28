@@ -70,9 +70,11 @@ const pkg = require("okapibm25");
 
 assert.equal(typeof pkg.default, "function", "require('okapibm25').default is the function");
 assert.equal(pkg.BM25, pkg.default, "require('okapibm25').BM25 is the same function");
-for (const helper of ["getIDF", "getTermFrequency", "getWordCount"]) {
+for (const helper of ["createIndex", "getIDF", "getTermFrequency", "getWordCount"]) {
   assert.equal(typeof pkg[helper], "function", helper + " is exported");
 }
+const hits = pkg.createIndex(["a cat", "a dog"]).search(["DOG"]);
+assert.deepEqual(hits.map((hit) => hit.index), [1]);
 const { BM25 } = pkg;
 const scores = BM25(["a cat", "a dog"], ["cat"]);
 assert.ok(scores[0] > 0 && scores[1] === 0);
@@ -82,9 +84,11 @@ assert.equal(ranked[0].document, "a dog");
 
 const esModuleConsumer = `
 import assert from "node:assert/strict";
-import pkg, { BM25, getIDF, getTermFrequency, getWordCount } from "okapibm25";
+import pkg, { BM25, createIndex, getIDF, getTermFrequency, getWordCount } from "okapibm25";
 
 assert.equal(typeof BM25, "function", "import { BM25 } from 'okapibm25' is the function");
+assert.equal(typeof createIndex, "function", "import { createIndex } from 'okapibm25' is the function");
+assert.deepEqual(createIndex(["a cat", "a dog"]).scores(["cat"]), BM25(["a cat", "a dog"], ["cat"]));
 assert.equal(pkg.BM25, BM25);
 assert.equal(pkg.default, BM25, "the 1.4.1 form, (default import).default, still works");
 assert.equal(typeof getIDF, "function");
@@ -115,8 +119,9 @@ export const numbers: number[] = [getIDF("a", ["a"]), getTermFrequency("a", "a")
 `;
 
 const typeScriptEsModuleConsumer = `
-import { BM25, type BMDocument } from "okapibm25";
+import { BM25, createIndex, type BMDocument, type BMHit } from "okapibm25";
 
+export const hits: BMHit[] = createIndex(["a cat", "a dog"]).search(["cat"], { limit: 1 });
 export const scores: number[] = BM25(["a cat", "a dog"], ["cat"]);
 export const ranked: BMDocument[] = BM25(["a cat"], ["cat"], undefined, (first, second) => second.score - first.score);
 `;

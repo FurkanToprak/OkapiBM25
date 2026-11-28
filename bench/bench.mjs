@@ -11,6 +11,7 @@ import { performance } from "node:perf_hooks";
 
 const require = createRequire(import.meta.url);
 const current = require("../dist/BM25.js").default;
+const { createIndex } = require("../dist/BM25.js");
 const legacy = require("../tests/regression/legacy-v1.4.1.js").default;
 
 const args = process.argv.slice(2);
@@ -105,8 +106,22 @@ const results = scenarios.map((scenario) => {
   return { scenario: scenario.name, legacyMs, currentMs, speedup: legacyMs / currentMs };
 });
 
+// The index, for searching the same documents again and again. It matches
+// whole words where BM25 matches text, so its scores are not compared with
+// BM25 here; tests/index.test.ts does that on text where the two agree.
+const indexResults = [scenarios[1], scenarios[3]].map((scenario) => {
+  const index = createIndex(scenario.documents);
+  const call = { documents: scenario.documents, keywords: scenario.keywords };
+  return {
+    scenario: scenario.name,
+    bm25Ms: measure(current, call),
+    buildMs: measure((documents) => createIndex(documents), call),
+    searchMs: measure((documents, keywords) => index.search(keywords, { limit: 10 }), call),
+  };
+});
+
 if (asJson) {
-  console.log(JSON.stringify({ node: process.version, results }, null, 2));
+  console.log(JSON.stringify({ node: process.version, results, index: indexResults }, null, 2));
 } else {
   const format = (milliseconds) => milliseconds.toFixed(3).padStart(10);
   const width = Math.max(...results.map((result) => result.scenario.length));
@@ -115,6 +130,13 @@ if (asJson) {
   for (const result of results) {
     console.log(
       `${result.scenario.padEnd(width)}  ${format(result.legacyMs)}  ${format(result.currentMs)}  ${result.speedup.toFixed(1)}x`
+    );
+  }
+  console.log(`\ncreateIndex: built once, then searched (best 10 results).\n`);
+  console.log(`${"scenario".padEnd(width)}  ${"BM25 call".padStart(10)}  ${"build".padStart(10)}  ${"search".padStart(10)}`);
+  for (const result of indexResults) {
+    console.log(
+      `${result.scenario.padEnd(width)}  ${format(result.bm25Ms)}  ${format(result.buildMs)}  ${format(result.searchMs)}`
     );
   }
 }
