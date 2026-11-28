@@ -12,9 +12,15 @@ const documents = [
 ];
 const keywords = ["quick", "dog", "c++"];
 const sorter = (first, second) => second.score - first.score;
+const searcher = BM25(documents);
+const withoutIndex = BM25(documents, { index: false });
 const index = createIndex(documents);
 
 const result = {
+  search: searcher.search(["Quick", "dog?"], { limit: 2 }),
+  searcherScores: searcher.scores(keywords, { k1: 1.5, b: 0.5 }),
+  searchWithoutIndex: withoutIndex.search(["Quick", "dog?"], { limit: 2 }),
+  scoresWithoutIndex: withoutIndex.scores(keywords, { k1: 1.5, b: 0.5 }),
   indexSearch: index.search(["Quick", "dog?"], { limit: 2 }),
   indexScores: index.scores(keywords, { k1: 1.5, b: 0.5 }),
   scores: BM25(documents, keywords),

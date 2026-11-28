@@ -11,7 +11,6 @@ import { performance } from "node:perf_hooks";
 
 const require = createRequire(import.meta.url);
 const current = require("../dist/BM25.js").default;
-const { createIndex } = require("../dist/BM25.js");
 const legacy = require("../tests/regression/legacy-v1.4.1.js").default;
 
 const args = process.argv.slice(2);
@@ -106,22 +105,31 @@ const results = scenarios.map((scenario) => {
   return { scenario: scenario.name, legacyMs, currentMs, speedup: legacyMs / currentMs };
 });
 
-// The index, for searching the same documents again and again. It matches
-// whole words where BM25 matches text, so its scores are not compared with
-// BM25 here; tests/index.test.ts does that on text where the two agree.
-const indexResults = [scenarios[1], scenarios[3]].map((scenario) => {
-  const index = createIndex(scenario.documents);
+// The table above times the older call, BM25(documents, keywords), because
+// that is the one 1.4.1 has. This part times BM25(documents): making it, which
+// builds the index, and a search with and without the index. It matches whole
+// words where the older call matches text, so the scores are not compared
+// here; tests/search.test.ts does that on text where the two agree.
+const searcherResults = [scenarios[1], scenarios[3]].map((scenario) => {
+  const withIndex = current(scenario.documents);
+  const withoutIndex = current(scenario.documents, { index: false });
   const call = { documents: scenario.documents, keywords: scenario.keywords };
+  const options = { limit: 10 };
+  if (JSON.stringify(withIndex.search(call.keywords, options)) !== JSON.stringify(withoutIndex.search(call.keywords, options))) {
+    console.error(`Results with and without an index differ for: ${scenario.name}`);
+    process.exit(1);
+  }
   return {
     scenario: scenario.name,
-    bm25Ms: measure(current, call),
-    buildMs: measure((documents) => createIndex(documents), call),
-    searchMs: measure((documents, keywords) => index.search(keywords, { limit: 10 }), call),
+    buildMs: measure((documents) => current(documents), call),
+    searchMs: measure((documents, keywords) => withIndex.search(keywords, options), call),
+    searchWithoutIndexMs: measure((documents, keywords) => withoutIndex.search(keywords, options), call),
+    olderCallMs: measure(current, call),
   };
 });
 
 if (asJson) {
-  console.log(JSON.stringify({ node: process.version, results, index: indexResults }, null, 2));
+  console.log(JSON.stringify({ node: process.version, results, searcher: searcherResults }, null, 2));
 } else {
   const format = (milliseconds) => milliseconds.toFixed(3).padStart(10);
   const width = Math.max(...results.map((result) => result.scenario.length));
@@ -132,13 +140,19 @@ if (asJson) {
       `${result.scenario.padEnd(width)}  ${format(result.legacyMs)}  ${format(result.currentMs)}  ${result.speedup.toFixed(1)}x`
     );
   }
-  console.log(`\ncreateIndex: built once, then searched (best 10 results).\n`);
-  console.log(`${"scenario".padEnd(width)}  ${"BM25 call".padStart(10)}  ${"build".padStart(10)}  ${"search".padStart(10)}`);
-  for (const result of indexResults) {
+  console.log(`\nBM25(documents): made once, then searched for the best 10 results.\n`);
+  console.log(
+    `${"scenario".padEnd(width)}  ${"make".padStart(10)}  ${"search".padStart(10)}  ${"no index".padStart(10)}  ${"older call".padStart(10)}`
+  );
+  for (const result of searcherResults) {
     console.log(
-      `${result.scenario.padEnd(width)}  ${format(result.bm25Ms)}  ${format(result.buildMs)}  ${format(result.searchMs)}`
+      `${result.scenario.padEnd(width)}  ${format(result.buildMs)}  ${format(result.searchMs)}  ${format(result.searchWithoutIndexMs)}  ${format(result.olderCallMs)}`
     );
   }
+  console.log(
+    `\nmake: BM25(documents), which builds the index. search: one search of that index.\n` +
+      `no index: one search of BM25(documents, { index: false }). older call: BM25(documents, keywords).`
+  );
 }
 
 const slowest = results.reduce((worst, result) => (result.speedup < worst.speedup ? result : worst));
