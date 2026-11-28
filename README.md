@@ -14,8 +14,8 @@
 
 Score and rank documents against search keywords with [Okapi BM25](https://en.wikipedia.org/wiki/Okapi_BM25), the ranking function behind most full-text search engines.
 
-- One function. Give it your documents and your keywords, get a score per document.
-- An optional index for searching the same documents many times: about half a millisecond per search on 10,000 documents.
+- Build an index of your documents once and search it as often as you like: about half a millisecond per search on 10,000 documents.
+- Or call one function with your documents and your keywords, and get a score per document. Nothing to build.
 - No dependencies, 5 kB gzipped.
 - Written in TypeScript, types included.
 - Runs on Node 12 and later, and in browsers through a bundler.
@@ -28,7 +28,7 @@ npm install okapibm25
 ## Quick start
 
 ```ts
-import { BM25 } from "okapibm25";
+import { createIndex } from "okapibm25";
 
 const documents = [
   "The quick brown fox jumps over the lazy dog",
@@ -36,18 +36,38 @@ const documents = [
   "Stock markets fell sharply on Monday",
 ];
 
+const index = createIndex(documents);
+
+const hits = index.search(["quick", "dog"]);
+// [
+//   { index: 1, document: "A quick guide to training your dog", score: 0.958 },
+//   { index: 0, document: "The quick brown fox jumps over the lazy dog", score: 0.860 },
+// ]
+```
+
+`search` returns the documents that contain a keyword, best match first. A higher score means a better match, and `index` is the position of the document in your array. The second document wins here because both contain the keywords once and it is shorter. The third contains neither keyword, so it is left out.
+
+Build the index once and keep it; every search after that is fast. It matches whole words and ignores case and punctuation, so text from a search box can go in as it was typed: `index.search(["Quick dog?"])` returns the same two hits.
+
+### Without an index
+
+When the documents are different on every call, or you search them only once, call `BM25` instead. It builds nothing and returns one score per document:
+
+```ts
+import { BM25 } from "okapibm25";
+
 const scores = BM25(documents, ["quick", "dog"]);
 // [0.860, 0.958, 0]
 ```
 
-You get one score per document, in the order of `documents`. A higher score means a better match, and a document that contains none of the keywords scores `0`. The second document wins here because both contain the keywords once and it is shorter.
+The scores are in the order of `documents`, and a document that contains none of the keywords scores `0`. `BM25` looks for the exact text of each keyword and is case-sensitive, where an index matches whole words. The [table below](#searching-the-same-documents-many-times) compares the two, and [Speed and limits](#speed-and-limits) says when each one is faster.
 
-Every one of these gives you the same function:
+### Importing
 
 ```ts
-import { BM25 } from "okapibm25"; // TypeScript, bundlers, Node ES modules
-import BM25 from "okapibm25"; // TypeScript and bundlers
-const { BM25 } = require("okapibm25"); // CommonJS
+import { BM25, createIndex } from "okapibm25"; // TypeScript, bundlers, Node ES modules
+const { BM25, createIndex } = require("okapibm25"); // CommonJS
+import BM25 from "okapibm25"; // the default export is `BM25`
 ```
 
 ## Used by
@@ -60,7 +80,7 @@ const { BM25 } = require("okapibm25"); // CommonJS
 
 ### Ranked results
 
-Pass a sorter as the fourth argument to get the documents back with their scores, sorted. It works like the function you give to [`Array.prototype.sort()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort).
+`index.search` already returns its hits sorted. With `BM25`, pass a sorter as the fourth argument to get the documents back with their scores, sorted. It works like the function you give to [`Array.prototype.sort()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort).
 
 ```ts
 const ranked = BM25(documents, ["quick", "dog"], undefined, (a, b) => b.score - a.score);
@@ -87,7 +107,7 @@ BM25(documents, ["quick", "dog"], { k1: 1.5, b: 0.5 });
 
 ### Searching for what a user typed
 
-Matching is exact, so `"Quick"` does not match `"quick"` and `"dog?"` does not match `"dog"`. To search for text from a search box, lowercase both sides and take the words out of the text:
+An index does this for you, as the quick start shows. `BM25` matches exact text, so `"Quick"` does not match `"quick"` and `"dog?"` does not match `"dog"`. To search for text from a search box with `BM25`, lowercase both sides and take the words out of the text:
 
 ```ts
 const toKeywords = (text: string) => text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
@@ -104,24 +124,16 @@ const best = scores
 
 The scores line up with `documents` by position, which is how the example gets back to the original text. Common words such as "the" and "is" are keywords like any other. If they drown out the words that matter, remove them from the keywords.
 
-An index, described next, does the lowercasing and the splitting for you.
-
 ### Searching the same documents many times
 
-`BM25` reads all the text on every call. When the documents stay the same between searches, build an index once and search that instead:
+`BM25` reads all the text on every call. When the documents stay the same between searches, build an index once, as in the quick start, and search that instead. `search` takes a limit and the same `k1` and `b`, and `scores` gives you one score per document:
 
 ```ts
-import { createIndex } from "okapibm25";
-
 const index = createIndex(documents);
 
-const hits = index.search(["Quick", "dog?"]);
-// [
-//   { index: 1, document: "A quick guide to training your dog", score: 0.958 },
-//   { index: 0, document: "The quick brown fox jumps over the lazy dog", score: 0.860 },
-// ]
+const top = index.search(["Quick", "dog?"], { limit: 1, k1: 1.5, b: 0.5 });
+// [{ index: 1, document: "A quick guide to training your dog", score: 0.953 }]
 
-const top = index.search(["quick", "dog"], { limit: 1, k1: 1.5, b: 0.5 });
 const all = index.scores(["quick", "dog"]);
 // [0.860, 0.958, 0]
 ```
